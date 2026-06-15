@@ -44,6 +44,22 @@ const Savings = () => {
     }
   };
 
+  const handleDepositSavings = async (transactionData) => {
+    try {
+      const res = await API.post('/savings/deposit', transactionData);
+      if (res.data.success) {
+        fetchHistory();
+        await refreshUser();
+        return { success: true };
+      }
+    } catch (err) {
+      return {
+        success: false,
+        message: err.response?.data?.message || 'Failed to add savings',
+      };
+    }
+  };
+
   const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('en-IN', {
       day: 'numeric',
@@ -60,18 +76,19 @@ const Savings = () => {
       <SavingsCard
         overallSavings={user?.overallSavings || 0}
         onSpendSavings={handleSpendSavings}
+        onDepositSavings={handleDepositSavings}
       />
 
       {/* Savings Ledger History */}
       <div className="space-y-4">
         <h3 className="text-lg font-bold text-white tracking-tight flex items-center">
           <span className="h-2 w-2 rounded-full bg-emerald-500 mr-2.5"></span>
-          Savings Spend Ledger
+          Savings Ledger
         </h3>
 
         <div className="glass-card rounded-2xl border border-white/5 overflow-hidden">
           <div className="p-5 border-b border-white/5">
-            <span className="text-xs font-semibold text-slate-400">Withdrawals from accumulated savings</span>
+            <span className="text-xs font-semibold text-slate-400">Deposits and withdrawals from accumulated savings</span>
           </div>
 
           <div className="overflow-x-auto">
@@ -81,7 +98,7 @@ const Savings = () => {
                   <th className="px-6 py-4">Item details</th>
                   <th className="px-6 py-4">Transaction Date</th>
                   <th className="px-6 py-4">Purpose / Memo</th>
-                  <th className="px-6 py-4 text-right">Amount Spent</th>
+                  <th className="px-6 py-4 text-right">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 text-xs">
@@ -101,7 +118,8 @@ const Savings = () => {
                   </tr>
                 ) : (
                   history.map((transaction) => {
-                    const { _id, title, amount, purpose, transactionDate } = transaction;
+                    const { _id, title, amount, purpose, transactionDate, type } = transaction;
+                    const isDeposit = type === 'deposit';
                     return (
                       <tr key={_id} className="hover:bg-white/2 transition-colors">
                         <td className="px-6 py-4 font-semibold text-white">{title}</td>
@@ -121,7 +139,8 @@ const Savings = () => {
                             <span className="italic text-slate-600 text-xs">No memo</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-right font-bold text-emerald-400 text-sm whitespace-nowrap">
+                        <td className={`px-6 py-4 text-right font-bold text-sm whitespace-nowrap ${isDeposit ? 'text-indigo-300' : 'text-emerald-400'}`}>
+                          <span className="text-xs font-normal mr-1">{isDeposit ? '+' : '-'}</span>
                           <span className="text-xs font-normal mr-0.5">₹</span>
                           <span>{amount.toLocaleString('en-IN')}</span>
                         </td>
@@ -144,7 +163,7 @@ const Savings = () => {
             Your **Overall Savings** represents all the funds left over from completed monthly budgets. When you click **Close & Save** on a monthly budget, any remaining balance transfers automatically into this pool.
           </p>
           <p className="text-xs text-slate-400 leading-relaxed">
-            You can spend directly from this savings pool for major, unbudgeted purchases. These transactions are tracked separately from your daily monthly budgets to maintain historical budgeting integrity.
+            You can also add money directly to this savings pool. Deposits and spending are tracked separately from daily monthly budgets to maintain historical budgeting integrity.
           </p>
         </div>
       </div>
