@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import API from '../api/axios';
 import GroupCard from '../components/GroupCard';
 import ExpenseTable from '../components/ExpenseTable';
 import ExpenseForm from '../components/ExpenseForm';
-import { FolderKanban, Plus, ArrowLeft, Trash2, Calendar, IndianRupee, HelpCircle, CheckCircle, AlertCircle } from 'lucide-react';
+import { FolderKanban, Plus, ArrowLeft, Trash2, Calendar, IndianRupee, HelpCircle, CheckCircle, AlertCircle, Lock } from 'lucide-react';
 
 const ExpenseGroups = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
@@ -36,6 +40,17 @@ const ExpenseGroups = () => {
       const res = await API.get('/groups');
       if (res.data.success) {
         setGroups(res.data.data);
+        
+        // Auto-select group from location state if present
+        const preSelectedGroupId = location.state?.selectedGroupId;
+        if (preSelectedGroupId) {
+          const matchedGroup = res.data.data.find((g) => g._id === preSelectedGroupId);
+          if (matchedGroup) {
+            handleSelectGroup(matchedGroup);
+            // Clear location state so that it doesn't trigger again on refreshes or subsequent actions
+            navigate(location.pathname, { replace: true, state: {} });
+          }
+        }
       }
     } catch (err) {
       console.error('Error fetching groups:', err);
@@ -141,11 +156,32 @@ const ExpenseGroups = () => {
     }
   };
 
+  const handleCloseGroup = async () => {
+    if (!selectedGroup || selectedGroup.status !== 'active') return;
+
+    if (window.confirm('Close this special expense group? This will stop new expenses from being added and will not move any remaining budget or overspend.')) {
+      try {
+        const res = await API.put(`/groups/${selectedGroup._id}`, {
+          status: 'completed',
+          endDate: new Date(),
+        });
+        if (res.data.success) {
+          setSelectedGroup(res.data.data);
+          fetchGroups();
+          setSuccess('Group closed successfully');
+          setTimeout(() => setSuccess(''), 3000);
+        }
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to close group');
+      }
+    }
+  };
+
   // Expense management handlers inside group detail
   const handleExpenseSubmit = async (expenseData) => {
     try {
       let res;
-      if (editingExpense) {
+      if (editingExpense && editingExpense._id) {
         res = await API.put(`/expenses/${editingExpense._id}`, expenseData);
       } else {
         res = await API.post('/expenses', expenseData);
@@ -182,7 +218,7 @@ const ExpenseGroups = () => {
   };
 
   const openAddExpenseModal = () => {
-    setEditingExpense(null);
+    setEditingExpense(selectedGroup ? { groupId: selectedGroup._id } : null);
     setIsExpenseModalOpen(true);
   };
 
@@ -254,13 +290,24 @@ const ExpenseGroups = () => {
                 <span>Back to groups list</span>
               </button>
 
-              <button
-                onClick={() => handleGroupDelete(selectedGroup._id)}
-                className="flex items-center space-x-1.5 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 px-3 py-1.5 rounded-lg border border-rose-500/10 transition-colors"
-              >
-                <Trash2 className="h-4 w-4" />
-                <span>Delete Group</span>
-              </button>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {selectedGroup.status === 'active' && (
+                  <button
+                    onClick={handleCloseGroup}
+                    className="flex items-center space-x-1.5 text-xs text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/15 transition-colors"
+                  >
+                    <Lock className="h-4 w-4" />
+                    <span>Close Group</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => handleGroupDelete(selectedGroup._id)}
+                  className="flex items-center space-x-1.5 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 px-3 py-1.5 rounded-lg border border-rose-500/10 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Delete Group</span>
+                </button>
+              </div>
             </div>
 
             {/* Selected Group Card details */}
