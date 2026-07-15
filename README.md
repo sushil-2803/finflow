@@ -192,7 +192,7 @@ On Windows PowerShell:
 $env:DOCKERHUB_NAMESPACE="your-dockerhub-username"
 $env:IMAGE_TAG="latest"
 $env:VITE_API_URL="https://expenseapi.sushildubey.cloud/api"
-$env:GOOGLE_CLIENT_ID="308538071428-7q5jq8q7k02tfbs4jr2j5vbd0n32r1gq.apps.googleusercontent.com"
+$env:GOOGLE_CLIENT_ID="your_google_client_id.apps.googleusercontent.com"
 docker buildx bake -f docker-bake.hcl --push
 ```
 
