@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { IndianRupee, TrendingUp, Send, CheckCircle2, AlertCircle } from 'lucide-react';
+import { IndianRupee, TrendingUp, Send, CheckCircle2, AlertCircle, PlusCircle } from 'lucide-react';
 
-const SavingsCard = ({ overallSavings, onSpendSavings }) => {
+const SavingsCard = ({ overallSavings, onSpendSavings, onDepositSavings }) => {
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [purpose, setPurpose] = useState('');
+  const [mode, setMode] = useState('spend');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -14,32 +15,33 @@ const SavingsCard = ({ overallSavings, onSpendSavings }) => {
     setError('');
     setSuccess('');
 
-    const spendAmount = parseFloat(amount);
+    const transactionAmount = parseFloat(amount);
 
     if (!title.trim()) {
       setError('Title is required');
       return;
     }
-    if (isNaN(spendAmount) || spendAmount <= 0) {
+    if (isNaN(transactionAmount) || transactionAmount <= 0) {
       setError('Please enter a valid amount greater than 0');
       return;
     }
-    if (overallSavings < spendAmount) {
+    if (mode === 'spend' && overallSavings < transactionAmount) {
       setError(`Insufficient savings balance. You only have ₹${overallSavings.toLocaleString('en-IN')}`);
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const result = await onSpendSavings({
+      const handler = mode === 'deposit' ? onDepositSavings : onSpendSavings;
+      const result = await handler({
         title: title.trim(),
-        amount: spendAmount,
+        amount: transactionAmount,
         purpose: purpose.trim(),
         transactionDate: new Date(),
       });
 
       if (result.success) {
-        setSuccess('Transaction recorded successfully!');
+        setSuccess(mode === 'deposit' ? 'Savings added successfully!' : 'Transaction recorded successfully!');
         setTitle('');
         setAmount('');
         setPurpose('');
@@ -83,10 +85,28 @@ const SavingsCard = ({ overallSavings, onSpendSavings }) => {
 
       {/* Spend Form */}
       <div className="flex-1 flex flex-col justify-center">
-        <h4 className="text-sm font-semibold text-white mb-3 flex items-center">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mr-2"></span>
-          Spend from Accumulated Savings
-        </h4>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h4 className="text-sm font-semibold text-white flex items-center">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mr-2"></span>
+            {mode === 'deposit' ? 'Add to Accumulated Savings' : 'Spend from Accumulated Savings'}
+          </h4>
+          <div className="flex rounded-lg border border-white/10 bg-white/5 p-0.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setMode('spend')}
+              className={`px-3 py-1.5 rounded-md transition-colors ${mode === 'spend' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}
+            >
+              Spend
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('deposit')}
+              className={`px-3 py-1.5 rounded-md transition-colors ${mode === 'deposit' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}
+            >
+              Add Money
+            </button>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
           {error && (
@@ -106,7 +126,7 @@ const SavingsCard = ({ overallSavings, onSpendSavings }) => {
           <div className="grid grid-cols-2 gap-2">
             <input
               type="text"
-              placeholder="What are you buying? (e.g. Headphones)"
+              placeholder={mode === 'deposit' ? 'Source (e.g. Bonus, Cash deposit)' : 'What are you buying? (e.g. Headphones)'}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="glass-input text-xs w-full"
@@ -125,7 +145,7 @@ const SavingsCard = ({ overallSavings, onSpendSavings }) => {
           <div className="flex space-x-2">
             <input
               type="text"
-              placeholder="Purpose / Description (optional)"
+              placeholder={mode === 'deposit' ? 'Memo (optional)' : 'Purpose / Description (optional)'}
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
               className="glass-input text-xs flex-1"
@@ -134,10 +154,15 @@ const SavingsCard = ({ overallSavings, onSpendSavings }) => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs py-2.5 px-4 rounded-lg flex items-center justify-center transition-all disabled:opacity-50"
+              className={`${mode === 'deposit' ? 'bg-indigo-600 hover:bg-indigo-500' : 'bg-emerald-600 hover:bg-emerald-500'} text-white font-medium text-xs py-2.5 px-4 rounded-lg flex items-center justify-center transition-all disabled:opacity-50`}
             >
               {isSubmitting ? (
                 <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              ) : mode === 'deposit' ? (
+                <>
+                  <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
+                  <span>Add</span>
+                </>
               ) : (
                 <>
                   <Send className="h-3.5 w-3.5 mr-1.5" />

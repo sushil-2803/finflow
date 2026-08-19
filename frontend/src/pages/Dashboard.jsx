@@ -105,7 +105,7 @@ const Dashboard = () => {
   const handleExpenseSubmit = async (expenseData) => {
     try {
       let res;
-      if (editingExpense) {
+      if (editingExpense && editingExpense._id) {
         res = await API.put(`/expenses/${editingExpense._id}`, expenseData);
       } else {
         res = await API.post('/expenses', expenseData);
@@ -135,8 +135,15 @@ const Dashboard = () => {
     }
   };
 
-  const openAddModal = () => {
-    setEditingExpense(null);
+  const openAddModal = (options = {}) => {
+    const dummyExpense = {};
+    if (options.budgetId) {
+      dummyExpense.budgetId = options.budgetId;
+    }
+    if (options.groupId) {
+      dummyExpense.groupId = options.groupId;
+    }
+    setEditingExpense(Object.keys(dummyExpense).length > 0 ? dummyExpense : null);
     setIsFormOpen(true);
   };
 
@@ -230,19 +237,19 @@ const Dashboard = () => {
               <span className="h-2 w-2 rounded-full bg-indigo-500 mr-2.5"></span>
               Current Month Tracker
             </h2>
-            <button
+            {/* <button
               onClick={openAddModal}
               className="btn-primary text-xs py-2 px-3.5 flex items-center space-x-1.5"
             >
               <Plus className="h-4 w-4" />
               <span>Record Expense</span>
-            </button>
+            </button> */}
           </div>
 
           {activeBudget ? (
             <BudgetCard
               budget={activeBudget}
-              onCloseBudget={handleCloseBudget}
+              onAddExpense={(budgetId) => openAddModal({ budgetId })}
               onSelectBudget={(id) => navigate(`/budgets/${id}`)}
             />
           ) : (
@@ -327,7 +334,7 @@ const Dashboard = () => {
         </div>
 
         {/* Child 3: Active Expense Groups (spans 2 cols, row 2 on desktop) */}
-        <div className="lg:col-span-2 space-y-4 order-4 lg:order-3">
+        <div className="lg:col-span-2 space-y-4 order-2 lg:order-3">
           <h3 className="text-sm font-bold text-slate-300 tracking-wider uppercase">Active Expense Groups</h3>
           {activeGroups.length === 0 ? (
             <div className="glass-card rounded-2xl p-6 border border-white/5 text-center text-slate-400 text-xs">
@@ -336,14 +343,23 @@ const Dashboard = () => {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {activeGroups.slice(0, 2).map((group) => (
-                <GroupCard key={group._id} group={group} />
+                <div
+                  key={group._id}
+                  onClick={() => navigate('/groups', { state: { selectedGroupId: group._id } })}
+                  className="cursor-pointer"
+                >
+                  <GroupCard
+                    group={group}
+                    onAddExpense={(groupId) => openAddModal({ groupId })}
+                  />
+                </div>
               ))}
             </div>
           )}
         </div>
 
         {/* Child 4: Transaction Ledger (spans 3 cols, row 3 on desktop) */}
-        <div className="lg:col-span-3 space-y-4 order-2 lg:order-4">
+        <div className="lg:col-span-3 space-y-4 order-4 lg:order-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <h2 className="text-lg font-bold text-white tracking-tight flex items-center">
               <span className="h-2 w-2 rounded-full bg-emerald-500 mr-2.5"></span>

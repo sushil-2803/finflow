@@ -1,8 +1,8 @@
 import React from 'react';
-import { FolderKanban, IndianRupee, Calendar, ArrowRight } from 'lucide-react';
+import { FolderKanban, IndianRupee, Calendar, ArrowRight, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const GroupCard = ({ group }) => {
+const GroupCard = ({ group, onAddExpense }) => {
   if (!group) return null;
 
   const {
@@ -130,13 +130,28 @@ const GroupCard = ({ group }) => {
         )}
 
         {/* Action button */}
-        <Link
-          to={`/groups`}
-          className="btn-secondary w-full text-xs py-2.5 rounded-lg flex items-center justify-center"
-        >
-          <span>Manage Group Expenses</span>
-          <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
-        </Link>
+        {status === 'active' && onAddExpense ? (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onAddExpense(_id);
+            }}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs py-2.5 rounded-lg flex items-center justify-center transition-colors shadow-md shadow-emerald-600/10 cursor-pointer"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            <span>Add Expense</span>
+          </button>
+        ) : (
+          <Link
+            to={`/groups`}
+            state={{ selectedGroupId: _id }}
+            className="btn-secondary w-full text-xs py-2.5 rounded-lg flex items-center justify-center"
+          >
+            <span>Manage Group Expenses</span>
+            <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+          </Link>
+        )}
       </div>
     </div>
   );

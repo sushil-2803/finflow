@@ -1,7 +1,7 @@
 import React from 'react';
-import { Calendar, IndianRupee, Landmark, Lock, ArrowUpRight } from 'lucide-react';
+import { Calendar, IndianRupee, Landmark, Lock, ArrowUpRight, Plus } from 'lucide-react';
 
-const BudgetCard = ({ budget, onCloseBudget, onSelectBudget }) => {
+const BudgetCard = ({ budget, onCloseBudget, onSelectBudget, onAddExpense }) => {
   if (!budget) return null;
 
   const {
@@ -161,7 +161,16 @@ const BudgetCard = ({ budget, onCloseBudget, onSelectBudget }) => {
             <ArrowUpRight className="h-3.5 w-3.5 ml-1.5" />
           </button>
         )}
-        {!isClosed && onCloseBudget && (
+        {!isClosed && onAddExpense && (
+          <button
+            onClick={() => onAddExpense(_id)}
+            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs py-2 px-3 rounded-lg flex items-center justify-center transition-colors shadow-md shadow-emerald-600/10"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            <span>Add Expense</span>
+          </button>
+        )}
+        {!isClosed && onCloseBudget && !onAddExpense && (
           <button
             onClick={() => {
               if (window.confirm('Are you sure you want to close this month budget? The remaining amount will be transferred to your Overall Savings.')) {

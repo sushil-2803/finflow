@@ -19,6 +19,7 @@ const ExpenseForm = ({
   const [groupId, setGroupId] = useState('');
   const [isSpentFromSavings, setIsSpentFromSavings] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitMode, setSubmitMode] = useState('close');
   const [error, setError] = useState('');
 
   const paymentMethods = [
@@ -66,6 +67,14 @@ const ExpenseForm = ({
 
   if (!isOpen) return null;
 
+  const resetForNextExpense = () => {
+    setTitle('');
+    setAmount('');
+    setSeller('');
+    setNotes('');
+    setExpenseDate(new Date().toISOString().substring(0, 10));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -97,7 +106,11 @@ const ExpenseForm = ({
 
       const result = await onSubmit(data);
       if (result.success) {
-        onClose();
+        if (submitMode === 'another' && !expense?._id) {
+          resetForNextExpense();
+        } else {
+          onClose();
+        }
       } else {
         setError(result.message || 'Failed to save expense');
       }
@@ -355,6 +368,7 @@ const ExpenseForm = ({
               type="submit"
               className="btn-primary text-xs"
               disabled={isSubmitting}
+              onClick={() => setSubmitMode('close')}
             >
               {isSubmitting ? (
                 <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block"></span>
@@ -364,6 +378,16 @@ const ExpenseForm = ({
                 'Add Expense'
               )}
             </button>
+            {!expense?._id && (
+              <button
+                type="submit"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs py-2.5 px-4 rounded-lg transition-all disabled:opacity-50"
+                disabled={isSubmitting}
+                onClick={() => setSubmitMode('another')}
+              >
+                Save & Add Another
+              </button>
+            )}
           </div>
         </form>
       </div>

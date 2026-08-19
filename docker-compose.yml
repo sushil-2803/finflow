@@ -1,0 +1,51 @@
+services:
+  db:
+    image: mongo:7
+    container_name: finflow-db
+    restart: unless-stopped
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: finflow-backend:local
+    container_name: finflow-backend
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      PORT: 5000
+      MONGODB_URI: mongodb://db:27017/expense_manager
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:5000/api}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-308538071428-7q5jq8q7k02tfbs4jr2j5vbd0n32r1gq.apps.googleusercontent.com}
+    image: finflow-frontend:local
+    container_name: finflow-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
