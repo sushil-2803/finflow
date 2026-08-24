@@ -9,6 +9,10 @@ const ExpenseTable = ({
   onDelete,
   searchTerm,
   onSearchChange,
+  selectedCategory = '',
+  onCategoryChange,
+  categories = [],
+  categoryTotals = [],
   loading
 }) => {
   const { page = 1, pages = 1, total = 0 } = pagination || {};
@@ -38,6 +42,20 @@ const ExpenseTable = ({
       {/* Search & Utility Bar */}
       <div className="p-5 border-b border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
         <h3 className="text-base font-bold text-white self-start sm:self-center">Recent Transactions</h3>
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+        <select
+          value={selectedCategory}
+          onChange={(e) => onCategoryChange && onCategoryChange(e.target.value)}
+          className="glass-input !py-1.5 text-xs w-full sm:w-44"
+          disabled={!onCategoryChange}
+        >
+          <option value="" className="bg-slate-900 text-white">All categories</option>
+          {categories.map((category) => (
+            <option key={category} value={category} className="bg-slate-900 text-white">
+              {category}
+            </option>
+          ))}
+        </select>
         <div className="relative w-full sm:max-w-xs">
           <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
             <Search className="h-4 w-4" />
@@ -50,7 +68,23 @@ const ExpenseTable = ({
             className="glass-input !pl-9 !pr-4 !py-1.5 text-xs w-full"
           />
         </div>
+        </div>
       </div>
+
+      {categoryTotals.length > 0 && (
+        <div className="px-5 py-3 border-b border-white/5 flex flex-wrap gap-2">
+          {categoryTotals.map((item) => (
+            <span
+              key={item.category}
+              className="inline-flex items-center gap-1.5 bg-slate-800/70 text-slate-300 border border-white/5 px-2.5 py-1 rounded-lg text-xs"
+            >
+              <Tag className="h-3 w-3 text-indigo-400" />
+              <span className="font-medium">{item.category}</span>
+              <span className="text-slate-500">₹{item.total.toLocaleString('en-IN')}</span>
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Table Content */}
       <div className="overflow-x-auto">
@@ -92,6 +126,7 @@ const ExpenseTable = ({
                   expenseDate,
                   budgetId,
                   groupId,
+                  category,
                   isSpentFromSavings,
                 } = expense;
 
@@ -115,6 +150,10 @@ const ExpenseTable = ({
                           "{notes}"
                         </div>
                       )}
+                      <div className="text-xs text-indigo-300 mt-1 inline-flex items-center gap-1">
+                        <Tag className="h-3 w-3" />
+                        <span>{category || 'Uncategorized'}</span>
+                      </div>
                     </td>
 
                     {/* Date */}

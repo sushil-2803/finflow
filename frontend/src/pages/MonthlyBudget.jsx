@@ -69,7 +69,7 @@ const MonthlyBudget = () => {
     try {
       const res = await API.post(`/budgets/${id}/close`);
       if (res.data.success) {
-        setSuccess('Budget closed and funds moved to savings!');
+        setSuccess('Budget closed successfully!');
         fetchBudgets();
         await refreshUser();
         setTimeout(() => setSuccess(''), 3000);
@@ -316,7 +316,7 @@ const MonthlyBudget = () => {
               <HelpCircle className="h-3.5 w-3.5 mr-1" /> How ending a month works
             </span>
             <p className="text-xs text-slate-400 leading-relaxed">
-              When a month ends, click **Close & Save**. FinFlow will lock the budget, calculate what remains, and add it directly to your **Overall Savings**!
+              When a month ends, click Close & Save. FinFlow will lock the budget and add only positive remaining balance to Overall Savings.
             </p>
           </div>
         </div>

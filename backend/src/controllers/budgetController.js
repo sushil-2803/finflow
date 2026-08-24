@@ -126,13 +126,6 @@ const updateBudget = async (req, res, next) => {
       // Recalculate remaining amount based on new budget amount and current total expenses
       const newRemainingAmount = newBudgetAmount - budget.totalExpenses;
 
-      if (newRemainingAmount < 0) {
-        return res.status(400).json({
-          success: false,
-          message: `Cannot reduce budget limit below current total expenses (₹${budget.totalExpenses})`,
-        });
-      }
-
       budget.budgetAmount = newBudgetAmount;
       budget.remainingAmount = newRemainingAmount;
     }
@@ -180,7 +173,7 @@ const deleteBudget = async (req, res, next) => {
   }
 };
 
-// @desc    Close budget and transfer remaining balance to overall savings (Option B)
+// @desc    Close budget and transfer positive remaining balance to overall savings
 // @route   POST /api/budgets/:id/close
 // @access  Private
 const closeBudget = async (req, res, next) => {
@@ -204,8 +197,8 @@ const closeBudget = async (req, res, next) => {
       });
     }
 
-    // Savings generated is the remaining budget amount
-    const savings = budget.remainingAmount;
+    // Only positive excess becomes savings. Deficits are closed without reducing savings.
+    const savings = Math.max(budget.remainingAmount, 0);
 
     // Update budget state
     budget.isClosed = true;
@@ -224,7 +217,9 @@ const closeBudget = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Budget closed and remaining balance transferred to savings successfully',
+      message: savings > 0
+        ? 'Budget closed and remaining balance transferred to savings successfully'
+        : 'Budget closed with no remaining balance to transfer',
       data: {
         budget,
         overallSavings: user ? user.overallSavings : 0,

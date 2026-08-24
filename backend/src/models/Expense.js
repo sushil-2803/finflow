@@ -35,6 +35,11 @@ const ExpenseSchema = new mongoose.Schema({
     required: true,
     min: 0,
   },
+  category: {
+    type: String,
+    trim: true,
+    default: '',
+  },
   paymentMethod: {
     type: String,
     required: true,
@@ -63,5 +68,6 @@ const ExpenseSchema = new mongoose.Schema({
 ExpenseSchema.index({ userId: 1, expenseDate: -1 });
 ExpenseSchema.index({ budgetId: 1 });
 ExpenseSchema.index({ groupId: 1 });
+ExpenseSchema.index({ userId: 1, category: 1 });
 
 module.exports = mongoose.model('Expense', ExpenseSchema);

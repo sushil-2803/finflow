@@ -30,8 +30,11 @@ const Dashboard = () => {
   const [recentExpenses, setRecentExpenses] = useState([]);
   const [budgets, setBudgets] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [categoryTotals, setCategoryTotals] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [tableLoading, setTableLoading] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
@@ -65,15 +68,24 @@ const Dashboard = () => {
         setActiveGroups(groupRes.data.data.filter((g) => g.status === 'active'));
       }
 
+      const categoryRes = await API.get('/categories');
+      if (categoryRes.data.success) {
+        setCategories(categoryRes.data.data);
+      }
+
       // 3. Fetch recent expenses
       let url = `/expenses?page=1&limit=10&search=${searchTerm}`;
       if (selectedBudgetId) {
         url += `&budgetId=${selectedBudgetId}`;
       }
+      if (selectedCategory) {
+        url += `&category=${encodeURIComponent(selectedCategory)}`;
+      }
       const expenseRes = await API.get(url);
       if (expenseRes.data.success) {
         setRecentExpenses(expenseRes.data.data);
         setPagination(expenseRes.data.pagination);
+        setCategoryTotals(expenseRes.data.categoryTotals || []);
       }
 
       // 4. Refresh user profile (for savings balance)
@@ -87,7 +99,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [searchTerm, selectedBudgetId]);
+  }, [searchTerm, selectedBudgetId, selectedCategory]);
 
   // Handle closing active budget
   const handleCloseBudget = async (id) => {
@@ -133,6 +145,16 @@ const Dashboard = () => {
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete expense');
     }
+  };
+
+  const handleCreateCategory = async (name) => {
+    const res = await API.post('/categories', { name });
+    if (res.data.success) {
+      const categoryName = res.data.data;
+      setCategories((prev) => [...new Set([...prev, categoryName])].sort((a, b) => a.localeCompare(b)));
+      return categoryName;
+    }
+    return null;
   };
 
   const openAddModal = (options = {}) => {
@@ -389,16 +411,24 @@ const Dashboard = () => {
               if (selectedBudgetId) {
                 url += `&budgetId=${selectedBudgetId}`;
               }
+              if (selectedCategory) {
+                url += `&category=${encodeURIComponent(selectedCategory)}`;
+              }
               const res = await API.get(url);
               if (res.data.success) {
                 setRecentExpenses(res.data.data);
                 setPagination(res.data.pagination);
+                setCategoryTotals(res.data.categoryTotals || []);
               }
             }}
             onEdit={openEditModal}
             onDelete={handleExpenseDelete}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+            categories={categories}
+            categoryTotals={categoryTotals}
             loading={tableLoading}
           />
         </div>
@@ -412,6 +442,8 @@ const Dashboard = () => {
         onSubmit={handleExpenseSubmit}
         budgets={budgets}
         groups={groups}
+        categories={categories}
+        onCreateCategory={handleCreateCategory}
       />
     </div>
   );

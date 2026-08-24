@@ -37,7 +37,6 @@ const MonthlyBudgetSchema = new mongoose.Schema({
   remainingAmount: {
     type: Number,
     required: true,
-    min: 0,
   },
   totalExpenses: {
     type: Number,

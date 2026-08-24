@@ -10,6 +10,7 @@ const budgetRoutes = require('./routes/budgetRoutes');
 const expenseRoutes = require('./routes/expenseRoutes');
 const groupRoutes = require('./routes/groupRoutes');
 const savingsRoutes = require('./routes/savingsRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.use('/api/budgets', budgetRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/savings', savingsRoutes);
+app.use('/api/categories', categoryRoutes);
 
 // Root route for verification
 app.get('/', (req, res) => {

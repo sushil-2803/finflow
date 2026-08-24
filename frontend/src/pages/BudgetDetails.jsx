@@ -32,6 +32,9 @@ const BudgetDetails = () => {
   const [editingExpense, setEditingExpense] = useState(null);
   const [budgets, setBudgets] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [categoryTotals, setCategoryTotals] = useState([]);
 
   // Fetch budget detail and its expenses
   const fetchBudgetDetails = async () => {
@@ -52,10 +55,15 @@ const BudgetDetails = () => {
   const fetchBudgetExpenses = async (page = 1) => {
     try {
       setExpensesLoading(true);
-      const res = await API.get(`/expenses?page=${page}&limit=10&budgetId=${id}`);
+      let url = `/expenses?page=${page}&limit=10&budgetId=${id}`;
+      if (selectedCategory) {
+        url += `&category=${encodeURIComponent(selectedCategory)}`;
+      }
+      const res = await API.get(url);
       if (res.data.success) {
         setExpenses(res.data.data);
         setPagination(res.data.pagination);
+        setCategoryTotals(res.data.categoryTotals || []);
       }
     } catch (err) {
       console.error('Error fetching budget expenses:', err);
@@ -75,6 +83,10 @@ const BudgetDetails = () => {
       if (groupRes.data.success) {
         setGroups(groupRes.data.data);
       }
+      const categoryRes = await API.get('/categories');
+      if (categoryRes.data.success) {
+        setCategories(categoryRes.data.data);
+      }
     } catch (err) {
       console.error('Failed to load lookup data:', err);
     }
@@ -84,13 +96,13 @@ const BudgetDetails = () => {
     fetchBudgetDetails();
     fetchBudgetExpenses(1);
     fetchLookupData();
-  }, [id]);
+  }, [id, selectedCategory]);
 
   const handleCloseBudget = async (budgetId) => {
     try {
       const res = await API.post(`/budgets/${budgetId}/close`);
       if (res.data.success) {
-        setSuccess('Budget closed and remaining funds moved to savings!');
+        setSuccess('Budget closed successfully!');
         fetchBudgetDetails();
         setTimeout(() => setSuccess(''), 3000);
       }
@@ -152,6 +164,16 @@ const BudgetDetails = () => {
         alert(err.response?.data?.message || 'Failed to delete expense');
       }
     }
+  };
+
+  const handleCreateCategory = async (name) => {
+    const res = await API.post('/categories', { name });
+    if (res.data.success) {
+      const categoryName = res.data.data;
+      setCategories((prev) => [...new Set([...prev, categoryName])].sort((a, b) => a.localeCompare(b)));
+      return categoryName;
+    }
+    return null;
   };
 
   const openAddExpenseModal = () => {
@@ -272,6 +294,10 @@ const BudgetDetails = () => {
                 onDelete={handleExpenseDelete}
                 searchTerm=""
                 onSearchChange={() => {}}
+                selectedCategory={selectedCategory}
+                onCategoryChange={setSelectedCategory}
+                categories={categories}
+                categoryTotals={categoryTotals}
                 loading={expensesLoading}
               />
             )}
@@ -287,6 +313,8 @@ const BudgetDetails = () => {
         onSubmit={handleExpenseSubmit}
         budgets={budgets}
         groups={groups}
+        categories={categories}
+        onCreateCategory={handleCreateCategory}
       />
     </div>
   );

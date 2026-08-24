@@ -173,7 +173,7 @@ const BudgetCard = ({ budget, onCloseBudget, onSelectBudget, onAddExpense }) => 
         {!isClosed && onCloseBudget && !onAddExpense && (
           <button
             onClick={() => {
-              if (window.confirm('Are you sure you want to close this month budget? The remaining amount will be transferred to your Overall Savings.')) {
+              if (window.confirm('Are you sure you want to close this month budget? Any positive remaining amount will be transferred to your Overall Savings.')) {
                 onCloseBudget(_id);
               }
             }}

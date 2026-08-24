@@ -19,6 +19,7 @@ router.post(
   [
     body('title').notEmpty().withMessage('Title is required').trim(),
     body('amount').isFloat({ min: 0 }).withMessage('Amount must be a positive number'),
+    body('category').optional().trim(),
     body('paymentMethod')
       .isIn(['Cash', 'UPI', 'Credit Card', 'Debit Card', 'Net Banking', 'Wallet', 'Other'])
       .withMessage('Invalid payment method'),
@@ -40,6 +41,7 @@ router.put(
   [
     body('title').optional().notEmpty().withMessage('Title cannot be empty').trim(),
     body('amount').optional().isFloat({ min: 0 }).withMessage('Amount must be a positive number'),
+    body('category').optional().trim(),
     body('paymentMethod')
       .optional()
       .isIn(['Cash', 'UPI', 'Credit Card', 'Debit Card', 'Net Banking', 'Wallet', 'Other'])

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, IndianRupee, ShoppingBag, CreditCard, FileText, Bookmark, FolderOpen, PiggyBank } from 'lucide-react';
+import { X, Calendar, IndianRupee, ShoppingBag, CreditCard, FileText, Bookmark, FolderOpen, PiggyBank, Tag, Plus } from 'lucide-react';
 
 const ExpenseForm = ({
   expense,
@@ -7,11 +7,14 @@ const ExpenseForm = ({
   onClose,
   onSubmit,
   budgets = [],
-  groups = []
+  groups = [],
+  categories = [],
+  onCreateCategory
 }) => {
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('UPI');
+  const [category, setCategory] = useState('');
   const [seller, setSeller] = useState('');
   const [notes, setNotes] = useState('');
   const [expenseDate, setExpenseDate] = useState('');
@@ -32,6 +35,7 @@ const ExpenseForm = ({
       setTitle(expense.title || '');
       setAmount(expense.amount || '');
       setPaymentMethod(expense.paymentMethod || 'UPI');
+      setCategory(expense.category || '');
       setSeller(expense.seller || '');
       setNotes(expense.notes || '');
       setExpenseDate(expense.expenseDate ? expense.expenseDate.substring(0, 10) : new Date().toISOString().substring(0, 10));
@@ -43,6 +47,7 @@ const ExpenseForm = ({
       setTitle('');
       setAmount('');
       setPaymentMethod('UPI');
+      setCategory('');
       setSeller('');
       setNotes('');
       setExpenseDate(new Date().toISOString().substring(0, 10));
@@ -72,7 +77,30 @@ const ExpenseForm = ({
     setAmount('');
     setSeller('');
     setNotes('');
+    setCategory('');
     setExpenseDate(new Date().toISOString().substring(0, 10));
+  };
+
+  const handleCreateCategory = async () => {
+    const name = category.trim();
+    if (!name) {
+      setError('Category name is required');
+      return;
+    }
+    if (!onCreateCategory) return;
+
+    setIsSubmitting(true);
+    setError('');
+    try {
+      const createdName = await onCreateCategory(name);
+      if (createdName) {
+        setCategory(createdName);
+      }
+    } catch (err) {
+      setError('Failed to add category');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -95,6 +123,7 @@ const ExpenseForm = ({
       const data = {
         title: title.trim(),
         amount: expAmount,
+        category: category.trim(),
         paymentMethod,
         seller: seller.trim(),
         notes: notes.trim(),
@@ -232,6 +261,44 @@ const ExpenseForm = ({
                   ))}
                 </select>
               </div>
+            </div>
+          </div>
+
+          {/* Category */}
+          <div className="space-y-1">
+            <label className="text-xs uppercase font-bold text-slate-400 block tracking-wider">
+              Category
+            </label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">
+                  <Tag className="h-4 w-4" />
+                </span>
+                <input
+                  type="text"
+                  list="expense-category-options"
+                  placeholder="e.g. Groceries"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="glass-input !pl-10 text-sm w-full"
+                  disabled={isSubmitting}
+                />
+                <datalist id="expense-category-options">
+                  {categories.map((item) => (
+                    <option key={item} value={item} />
+                  ))}
+                </datalist>
+              </div>
+              <button
+                type="button"
+                onClick={handleCreateCategory}
+                className="btn-secondary text-xs px-3 shrink-0 flex items-center gap-1"
+                disabled={isSubmitting || !category.trim()}
+                title="Add category"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add</span>
+              </button>
             </div>
           </div>
 

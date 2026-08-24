@@ -3,6 +3,7 @@ const MonthlyBudget = require('../models/MonthlyBudget');
 const ExpenseGroup = require('../models/ExpenseGroup');
 const User = require('../models/User');
 const SavingsTransaction = require('../models/SavingsTransaction');
+const mongoose = require('mongoose');
 
 // @desc    Create a new expense
 // @route   POST /api/expenses
@@ -11,6 +12,7 @@ const createExpense = async (req, res, next) => {
   const {
     title,
     amount,
+    category,
     paymentMethod,
     seller,
     notes,
@@ -86,6 +88,7 @@ const createExpense = async (req, res, next) => {
       savingsTransactionId: savingsTx ? savingsTx._id : null,
       title,
       amount: expenseAmount,
+      category: category ? String(category).trim() : '',
       paymentMethod,
       seller,
       notes,
@@ -134,6 +137,9 @@ const getExpenses = async (req, res, next) => {
     if (req.query.groupId) {
       query.groupId = req.query.groupId;
     }
+    if (req.query.category) {
+      query.category = req.query.category;
+    }
     if (req.query.search) {
       query.$or = [
         { title: { $regex: req.query.search, $options: 'i' } },
@@ -141,13 +147,34 @@ const getExpenses = async (req, res, next) => {
       ];
     }
 
-    const total = await Expense.countDocuments(query);
-    const expenses = await Expense.find(query)
-      .sort({ expenseDate: -1, createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .populate('budgetId', 'title month year')
-      .populate('groupId', 'title');
+    const aggregateQuery = { ...query, userId: new mongoose.Types.ObjectId(req.user.id) };
+    if (aggregateQuery.budgetId) {
+      aggregateQuery.budgetId = new mongoose.Types.ObjectId(aggregateQuery.budgetId);
+    }
+    if (aggregateQuery.groupId) {
+      aggregateQuery.groupId = new mongoose.Types.ObjectId(aggregateQuery.groupId);
+    }
+
+    const [total, expenses, categoryTotals] = await Promise.all([
+      Expense.countDocuments(query),
+      Expense.find(query)
+        .sort({ expenseDate: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate('budgetId', 'title month year')
+        .populate('groupId', 'title'),
+      Expense.aggregate([
+        { $match: aggregateQuery },
+        {
+          $group: {
+            _id: { $ifNull: ['$category', 'Uncategorized'] },
+            total: { $sum: '$amount' },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { total: -1, _id: 1 } },
+      ]),
+    ]);
 
     res.status(200).json({
       success: true,
@@ -157,6 +184,11 @@ const getExpenses = async (req, res, next) => {
         limit,
         pages: Math.ceil(total / limit),
       },
+      categoryTotals: categoryTotals.map((item) => ({
+        category: item._id || 'Uncategorized',
+        total: item.total,
+        count: item.count,
+      })),
       data: expenses,
     });
   } catch (error) {
@@ -196,6 +228,7 @@ const updateExpense = async (req, res, next) => {
   const {
     title,
     amount,
+    category,
     paymentMethod,
     seller,
     notes,
@@ -411,6 +444,7 @@ const updateExpense = async (req, res, next) => {
     // Update expense model
     expense.title = title || expense.title;
     expense.amount = newAmount;
+    expense.category = category !== undefined ? String(category).trim() : expense.category;
     expense.paymentMethod = paymentMethod || expense.paymentMethod;
     expense.seller = seller !== undefined ? seller : expense.seller;
     expense.notes = notes !== undefined ? notes : expense.notes;
