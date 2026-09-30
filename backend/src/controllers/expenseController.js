@@ -53,6 +53,7 @@ const createExpense = async (req, res, next) => {
         title: `Expense: ${title}`,
         amount: expenseAmount,
         type: 'withdrawal',
+        source: 'expense',
         purpose: notes || 'Spent from Savings (via Expense Log)',
         transactionDate: expenseDate ? new Date(expenseDate) : new Date(),
       });
@@ -379,6 +380,7 @@ const updateExpense = async (req, res, next) => {
           title: `Expense: ${title || expense.title}`,
           amount: newAmount,
           type: 'withdrawal',
+          source: 'expense',
           purpose: notes !== undefined ? notes : expense.notes || 'Spent from Savings (via Expense Log)',
           transactionDate: expenseDate ? new Date(expenseDate) : expense.expenseDate,
         });

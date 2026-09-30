@@ -1,6 +1,7 @@
 const MonthlyBudget = require('../models/MonthlyBudget');
 const Expense = require('../models/Expense');
 const User = require('../models/User');
+const SavingsTransaction = require('../models/SavingsTransaction');
 
 // @desc    Create a new monthly budget
 // @route   POST /api/budgets
@@ -213,6 +214,18 @@ const closeBudget = async (req, res, next) => {
     if (user) {
       user.overallSavings += savings;
       await user.save();
+      if (savings > 0) {
+        await SavingsTransaction.create({
+          userId: req.user.id,
+          title: `Monthly saving: ${budget.title}`,
+          amount: savings,
+          type: 'deposit',
+          source: 'monthly_budget',
+          budgetId: budget._id,
+          purpose: `Remaining balance from ${budget.month}/${budget.year}`,
+          transactionDate: new Date(),
+        });
+      }
     }
 
     res.status(200).json({

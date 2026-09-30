@@ -57,6 +57,7 @@ const spendSavings = async (req, res, next) => {
       title,
       amount: spendAmount,
       type: 'withdrawal',
+      source: 'direct',
       purpose,
       transactionDate: transactionDate ? new Date(transactionDate) : new Date(),
     });
@@ -98,6 +99,7 @@ const depositSavings = async (req, res, next) => {
       title,
       amount: depositAmount,
       type: 'deposit',
+      source: 'direct',
       purpose,
       transactionDate: transactionDate ? new Date(transactionDate) : new Date(),
     });
