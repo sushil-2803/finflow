@@ -58,6 +58,9 @@ export default function SavingsScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.rowTitle, { color: colors.text }]}>{item.title}</Text>
+              <Text style={[styles.rowSource, { color: colors.primary }]}>
+                {item.source === 'monthly_budget' ? 'MONTHLY SAVING' : item.source === 'expense' ? 'SAVINGS EXPENSE' : item.type === 'deposit' ? 'DIRECT ADDITION' : 'DIRECT WITHDRAWAL'}
+              </Text>
               <Text style={[styles.rowMeta, { color: colors.muted }]}>
                 {dateTime(item.transactionDate)}{item.purpose ? ` • ${item.purpose}` : ''}
               </Text>
@@ -170,6 +173,7 @@ const styles = StyleSheet.create({
   row: { paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   icon: { height: 38, width: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   rowTitle: { fontWeight: '700', fontSize: 14 },
+  rowSource: { fontSize: 9, fontWeight: '800', letterSpacing: 0.6, marginTop: 3 },
   rowMeta: { fontSize: 12, marginTop: 3, maxWidth: 200 },
   rowAmount: { fontSize: 14, fontWeight: '800' },
   modal: { flex: 1 },
