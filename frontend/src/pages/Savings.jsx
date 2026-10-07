@@ -118,11 +118,15 @@ const Savings = () => {
                   </tr>
                 ) : (
                   history.map((transaction) => {
-                    const { _id, title, amount, purpose, transactionDate, type } = transaction;
+                    const { _id, title, amount, purpose, transactionDate, type, source } = transaction;
                     const isDeposit = type === 'deposit';
+                    const sourceLabel = source === 'monthly_budget' ? 'Monthly saving' : source === 'expense' ? 'Savings expense' : isDeposit ? 'Direct addition' : 'Direct withdrawal';
                     return (
                       <tr key={_id} className="hover:bg-white/2 transition-colors">
-                        <td className="px-6 py-4 font-semibold text-white">{title}</td>
+                        <td className="px-6 py-4 font-semibold text-white">
+                          <div>{title}</div>
+                          <div className="text-[10px] uppercase tracking-wide text-slate-500 mt-1">{sourceLabel}</div>
+                        </td>
                         <td className="px-6 py-4 text-slate-300">
                           <div className="flex items-center space-x-1.5">
                             <Calendar className="h-3.5 w-3.5 text-slate-500" />

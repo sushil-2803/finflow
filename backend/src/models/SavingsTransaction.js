@@ -21,6 +21,12 @@ const SavingsTransactionSchema = new mongoose.Schema({
     enum: ['deposit', 'withdrawal'],
     default: 'withdrawal',
   },
+  source: {
+    type: String,
+    enum: ['direct', 'monthly_budget', 'expense'],
+    default: 'direct',
+  },
+  budgetId: { type: mongoose.Schema.Types.ObjectId, ref: 'MonthlyBudget' },
   purpose: {
     type: String,
     trim: true,
