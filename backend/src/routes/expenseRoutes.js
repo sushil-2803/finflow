@@ -6,6 +6,7 @@ const {
   getExpenseById,
   updateExpense,
   deleteExpense,
+  addRefund,
 } = require('../controllers/expenseController');
 const { protect } = require('../middleware/auth');
 const { body } = require('express-validator');
@@ -56,5 +57,6 @@ router.put(
 );
 
 router.delete('/:id', deleteExpense);
+router.post('/:id/refunds', addRefund);
 
 module.exports = router;

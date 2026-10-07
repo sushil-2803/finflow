@@ -23,7 +23,7 @@ const SavingsTransactionSchema = new mongoose.Schema({
   },
   source: {
     type: String,
-    enum: ['direct', 'monthly_budget', 'expense'],
+    enum: ['direct', 'monthly_budget', 'expense', 'refund'],
     default: 'direct',
   },
   budgetId: { type: mongoose.Schema.Types.ObjectId, ref: 'MonthlyBudget' },

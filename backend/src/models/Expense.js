@@ -35,6 +35,14 @@ const ExpenseSchema = new mongoose.Schema({
     required: true,
     min: 0,
   },
+  originalAmount: { type: Number, min: 0 },
+  refundedAmount: { type: Number, default: 0, min: 0 },
+  refunds: [{
+    amount: { type: Number, required: true, min: 0 },
+    refundDate: { type: Date, default: Date.now },
+    notes: { type: String, trim: true },
+    createdAt: { type: Date, default: Date.now },
+  }],
   category: {
     type: String,
     trim: true,
