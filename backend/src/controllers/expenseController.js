@@ -89,6 +89,7 @@ const createExpense = async (req, res, next) => {
       savingsTransactionId: savingsTx ? savingsTx._id : null,
       title,
       amount: expenseAmount,
+      originalAmount: expenseAmount,
       category: category ? String(category).trim() : '',
       paymentMethod,
       seller,
@@ -118,6 +119,40 @@ const createExpense = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+// @desc Record a partial or full refund against an existing expense
+// @route POST /api/expenses/:id/refunds
+const addRefund = async (req, res, next) => {
+  const refundAmount = parseFloat(req.body.amount);
+  try {
+    const expense = await Expense.findOne({ _id: req.params.id, userId: req.user.id });
+    if (!expense) return res.status(404).json({ success: false, message: 'Expense not found' });
+    const originalAmount = expense.originalAmount ?? expense.amount + (expense.refundedAmount || 0);
+    const remaining = originalAmount - (expense.refundedAmount || 0);
+    if (!Number.isFinite(refundAmount) || refundAmount <= 0 || refundAmount > remaining) {
+      return res.status(400).json({ success: false, message: `Refund must be greater than 0 and no more than ₹${remaining.toLocaleString('en-IN')}.` });
+    }
+
+    expense.originalAmount = originalAmount;
+    expense.refundedAmount = (expense.refundedAmount || 0) + refundAmount;
+    expense.amount = Math.max(0, originalAmount - expense.refundedAmount);
+    expense.refunds.push({ amount: refundAmount, refundDate: req.body.refundDate ? new Date(req.body.refundDate) : new Date(), notes: req.body.notes });
+    await expense.save();
+
+    if (expense.isSpentFromSavings) {
+      const user = await User.findById(req.user.id);
+      if (user) { user.overallSavings += refundAmount; await user.save(); }
+    } else if (expense.budgetId) {
+      const budget = await MonthlyBudget.findOne({ _id: expense.budgetId, userId: req.user.id });
+      if (budget) { budget.totalExpenses = Math.max(0, budget.totalExpenses - refundAmount); budget.remainingAmount += refundAmount; await budget.save(); }
+    }
+    if (expense.groupId) {
+      const group = await ExpenseGroup.findOne({ _id: expense.groupId, userId: req.user.id });
+      if (group) { group.totalSpent = Math.max(0, group.totalSpent - refundAmount); await group.save(); }
+    }
+    res.status(201).json({ success: true, data: expense });
+  } catch (error) { next(error); }
 };
 
 // @desc    Get all expenses with pagination, search, and filters
@@ -534,4 +569,5 @@ module.exports = {
   getExpenseById,
   updateExpense,
   deleteExpense,
+  addRefund,
 };

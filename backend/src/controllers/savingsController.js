@@ -122,7 +122,7 @@ const depositSavings = async (req, res, next) => {
 // @access  Private
 const getSavingsHistory = async (req, res, next) => {
   try {
-    const transactions = await SavingsTransaction.find({ userId: req.user.id })
+    const transactions = await SavingsTransaction.find({ userId: req.user.id, source: { $ne: 'refund' } })
       .sort({ transactionDate: -1, createdAt: -1 });
 
     res.status(200).json({
