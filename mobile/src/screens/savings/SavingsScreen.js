@@ -59,7 +59,7 @@ export default function SavingsScreen() {
             <View style={{ flex: 1 }}>
               <Text style={[styles.rowTitle, { color: colors.text }]}>{item.title}</Text>
               <Text style={[styles.rowSource, { color: colors.primary }]}>
-                {item.source === 'monthly_budget' ? 'MONTHLY SAVING' : item.source === 'expense' ? 'SAVINGS EXPENSE' : item.type === 'deposit' ? 'DIRECT ADDITION' : 'DIRECT WITHDRAWAL'}
+                {item.source === 'monthly_budget' ? 'MONTHLY SAVING' : item.source === 'expense' ? 'SAVINGS EXPENSE' : item.source === 'refund' ? 'REFUND RECEIVED' : item.type === 'deposit' ? 'DIRECT ADDITION' : 'DIRECT WITHDRAWAL'}
               </Text>
               <Text style={[styles.rowMeta, { color: colors.muted }]}>
                 {dateTime(item.transactionDate)}{item.purpose ? ` • ${item.purpose}` : ''}

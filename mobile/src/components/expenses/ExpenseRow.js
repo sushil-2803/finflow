@@ -26,6 +26,11 @@ export default function ExpenseRow({ expense, onPress }) {
         <Text numberOfLines={1} style={[styles.meta, { color: colors.muted }]}>
           {expense.seller || expense.category || 'Uncategorized'} • {shortDate(expense.expenseDate)}
         </Text>
+        {expense.refunds?.length > 0 && (
+          <Text numberOfLines={1} style={[styles.refund, { color: colors.success }]}> 
+            Refund received: {money(expense.refundedAmount || 0)} • {expense.refunds[expense.refunds.length - 1].notes || 'Returned product'}
+          </Text>
+        )}
         <View style={styles.tags}>
           {expense.isSpentFromSavings && (
             <View style={styles.tag}>
@@ -82,6 +87,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
     fontSize: 12,
   },
+  refund: { marginTop: 3, fontSize: 11, fontWeight: '700' },
   tags: {
     flexDirection: 'row',
     gap: 5,

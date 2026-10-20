@@ -3,7 +3,7 @@ import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } fr
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2 } from 'lucide-react-native';
 import { closeBudget, deleteBudget, getBudget } from '../../api/budgets';
-import { deleteExpense, getExpenses } from '../../api/expenses';
+import { addRefund, deleteExpense, getExpenses } from '../../api/expenses';
 import AppScreen from '../../components/common/AppScreen';
 import EmptyState from '../../components/common/EmptyState';
 import ExpenseRow from '../../components/expenses/ExpenseRow';
@@ -192,6 +192,18 @@ export default function BudgetDetailsScreen({ route, navigation }) {
             expense={item}
             onPress={() =>
               Alert.alert(item.title, `${money(item.amount)} • ${item.paymentMethod}`, [
+                { text: 'Refund', onPress: () => {
+                  if (!Alert.prompt) return Alert.alert('Refund unavailable', 'Please use the web app to enter a refund amount.');
+                  Alert.prompt('Refund amount', `Remaining purchase amount: ${money(item.amount)}`, async (value) => {
+                    const amount = Number(value);
+                    if (!Number.isFinite(amount) || amount <= 0) return Alert.alert('Invalid amount', 'Enter a positive refund amount.');
+                    Alert.prompt('Refund reason or product name', 'For example: Blue shirt returned', async (notes) => {
+                      if (!notes || !notes.trim()) return Alert.alert('Reason required', 'Enter a refund reason or product name.');
+                      try { await addRefund(item._id, { amount, notes: notes.trim() }); await expenses.refetch(); await budgetQuery.refetch(); }
+                      catch (error) { Alert.alert('Could not record refund', userMessage(error)); }
+                    });
+                  }, 'plain-text', '', 'numeric');
+                } },
                 { text: 'Edit', onPress: () => openExpenseSheet({ expense: item }) },
                 { text: 'Delete', style: 'destructive', onPress: () => remove(item) },
                 { text: 'Cancel', style: 'cancel' },
