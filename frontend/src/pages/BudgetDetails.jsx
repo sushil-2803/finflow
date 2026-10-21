@@ -166,6 +166,17 @@ const BudgetDetails = () => {
     }
   };
 
+  const handleExpenseRefund = async (expense) => {
+    const value = window.prompt(`Refund amount (remaining ₹${(expense.amount || 0).toLocaleString('en-IN')}):`, '');
+    if (value === null) return;
+    const amount = parseFloat(value);
+    if (!Number.isFinite(amount) || amount <= 0) return alert('Enter a valid refund amount.');
+    const notes = window.prompt('Reason or product name for this refund:', '');
+    if (notes === null || !notes.trim()) return alert('Enter a refund reason or product name.');
+    try { await API.post(`/expenses/${expense._id}/refunds`, { amount, notes }); fetchBudgetDetails(); fetchBudgetExpenses(1); }
+    catch (err) { alert(err.response?.data?.message || 'Failed to record refund'); }
+  };
+
   const handleCreateCategory = async (name) => {
     const res = await API.post('/categories', { name });
     if (res.data.success) {
@@ -292,6 +303,7 @@ const BudgetDetails = () => {
                 onPageChange={(page) => fetchBudgetExpenses(page)}
                 onEdit={openEditExpenseModal}
                 onDelete={handleExpenseDelete}
+                onRefund={handleExpenseRefund}
                 searchTerm=""
                 onSearchChange={() => {}}
                 selectedCategory={selectedCategory}

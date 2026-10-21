@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit2, Trash2, Calendar, ShoppingBag, CreditCard, Tag, ArrowLeft, ArrowRight, Search, PiggyBank } from 'lucide-react';
+import { Edit2, Trash2, Calendar, ShoppingBag, CreditCard, Tag, ArrowLeft, ArrowRight, Search, PiggyBank, RotateCcw } from 'lucide-react';
 
 const ExpenseTable = ({
   expenses,
@@ -7,6 +7,7 @@ const ExpenseTable = ({
   onPageChange,
   onEdit,
   onDelete,
+  onRefund,
   searchTerm,
   onSearchChange,
   selectedCategory = '',
@@ -131,8 +132,8 @@ const ExpenseTable = ({
                 } = expense;
 
                 return (
+                  <React.Fragment key={_id}>
                   <tr
-                    key={_id}
                     className="hover:bg-white/2 cursor-pointer transition-colors"
                     onClick={() => onEdit && onEdit(expense)}
                   >
@@ -204,6 +205,13 @@ const ExpenseTable = ({
                     <td className="px-6 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-center space-x-1">
                         <button
+                          onClick={(e) => { e.stopPropagation(); onRefund && onRefund(expense); }}
+                          className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-white/5 rounded transition-colors"
+                          title="Record refund"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                        </button>
+                        <button
                           onClick={(e) => {
                             e.stopPropagation();
                             onEdit && onEdit(expense);
@@ -228,6 +236,20 @@ const ExpenseTable = ({
                       </div>
                     </td>
                   </tr>
+                  {(expense.refunds || []).map((refund, index) => (
+                    <tr key={`${_id}-refund-${index}`} className="bg-emerald-500/5 text-xs">
+                      <td className="px-6 py-3 pl-12">
+                        <div className="font-semibold text-emerald-300">Refund received</div>
+                        <div className="text-slate-400 mt-0.5">{refund.notes || 'Refund for returned product'}</div>
+                      </td>
+                      <td className="px-6 py-3 text-slate-300">{formatDate(refund.refundDate)}</td>
+                      <td className="px-6 py-3 text-emerald-300">Returned product</td>
+                      <td className="px-6 py-3 text-slate-500">—</td>
+                      <td className="px-6 py-3 text-right font-bold text-emerald-400">+ ₹{refund.amount.toLocaleString('en-IN')}</td>
+                      <td className="px-6 py-3 text-center text-slate-500">Recorded</td>
+                    </tr>
+                  ))}
+                  </React.Fragment>
                 );
               })
             )}
