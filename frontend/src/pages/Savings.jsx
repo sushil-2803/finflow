@@ -120,7 +120,7 @@ const Savings = () => {
                   history.map((transaction) => {
                     const { _id, title, amount, purpose, transactionDate, type, source } = transaction;
                     const isDeposit = type === 'deposit';
-                    const sourceLabel = source === 'monthly_budget' ? 'Monthly saving' : source === 'expense' ? 'Savings expense' : isDeposit ? 'Direct addition' : 'Direct withdrawal';
+                    const sourceLabel = source === 'monthly_budget' ? 'Monthly saving' : source === 'expense' ? 'Savings expense' : source === 'refund' ? 'Refund received' : isDeposit ? 'Direct addition' : 'Direct withdrawal';
                     return (
                       <tr key={_id} className="hover:bg-white/2 transition-colors">
                         <td className="px-6 py-4 font-semibold text-white">
