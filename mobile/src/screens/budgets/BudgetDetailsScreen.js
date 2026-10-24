@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2 } from 'lucide-react-native';
 import { closeBudget, deleteBudget, getBudget } from '../../api/budgets';
@@ -21,6 +21,10 @@ export default function BudgetDetailsScreen({ route, navigation }) {
   const { openExpenseSheet } = useExpenseSheet();
   const { colors, shadow } = useTheme();
   const [category, setCategory] = useState('');
+  const [refundExpense, setRefundExpense] = useState(null);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundReason, setRefundReason] = useState('');
+  const [refundSaving, setRefundSaving] = useState(false);
 
   const budgetQuery = useQuery({ queryKey: ['budget', id], queryFn: () => getBudget(id) });
   const expenses = useInfiniteQuery({
@@ -56,6 +60,29 @@ export default function BudgetDetailsScreen({ route, navigation }) {
         },
       },
     ]);
+
+  const openRefund = (expense) => {
+    setRefundExpense(expense);
+    setRefundAmount('');
+    setRefundReason('');
+  };
+
+  const submitRefund = async () => {
+    const amount = Number(refundAmount);
+    if (!Number.isFinite(amount) || amount <= 0) return Alert.alert('Invalid amount', 'Enter a positive refund amount.');
+    if (amount > refundExpense.amount) return Alert.alert('Invalid amount', `Refund cannot exceed ${money(refundExpense.amount)}.`);
+    if (!refundReason.trim()) return Alert.alert('Reason required', 'Enter a refund reason or product name.');
+    try {
+      setRefundSaving(true);
+      await addRefund(refundExpense._id, { amount, notes: refundReason.trim() });
+      setRefundExpense(null);
+      await Promise.all([expenses.refetch(), budgetQuery.refetch(), queryClient.invalidateQueries({ queryKey: ['budgets'] })]);
+    } catch (error) {
+      Alert.alert('Could not record refund', userMessage(error));
+    } finally {
+      setRefundSaving(false);
+    }
+  };
 
   const closeBudgetConfirm = () =>
     Alert.alert(
@@ -192,18 +219,7 @@ export default function BudgetDetailsScreen({ route, navigation }) {
             expense={item}
             onPress={() =>
               Alert.alert(item.title, `${money(item.amount)} • ${item.paymentMethod}`, [
-                { text: 'Refund', onPress: () => {
-                  if (!Alert.prompt) return Alert.alert('Refund unavailable', 'Please use the web app to enter a refund amount.');
-                  Alert.prompt('Refund amount', `Remaining purchase amount: ${money(item.amount)}`, async (value) => {
-                    const amount = Number(value);
-                    if (!Number.isFinite(amount) || amount <= 0) return Alert.alert('Invalid amount', 'Enter a positive refund amount.');
-                    Alert.prompt('Refund reason or product name', 'For example: Blue shirt returned', async (notes) => {
-                      if (!notes || !notes.trim()) return Alert.alert('Reason required', 'Enter a refund reason or product name.');
-                      try { await addRefund(item._id, { amount, notes: notes.trim() }); await expenses.refetch(); await budgetQuery.refetch(); }
-                      catch (error) { Alert.alert('Could not record refund', userMessage(error)); }
-                    });
-                  }, 'plain-text', '', 'numeric');
-                } },
+                { text: 'Refund', onPress: () => openRefund(item) },
                 { text: 'Edit', onPress: () => openExpenseSheet({ expense: item }) },
                 { text: 'Delete', style: 'destructive', onPress: () => remove(item) },
                 { text: 'Cancel', style: 'cancel' },
@@ -218,6 +234,26 @@ export default function BudgetDetailsScreen({ route, navigation }) {
             : <View style={{ height: 30 }} />
         }
       />
+      <Modal visible={Boolean(refundExpense)} transparent animationType="slide" onRequestClose={() => setRefundExpense(null)}>
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+        >
+          <View style={[styles.refundModal, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Record refund</Text>
+            <Text style={[styles.modalSubtitle, { color: colors.muted }]} numberOfLines={1}>{refundExpense?.title}</Text>
+            <Text style={[styles.inputLabel, { color: colors.muted }]}>Refund amount (up to {money(refundExpense?.amount || 0)})</Text>
+            <TextInput value={refundAmount} onChangeText={setRefundAmount} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, borderColor: colors.border }]} />
+            <Text style={[styles.inputLabel, { color: colors.muted }]}>Reason or product name</Text>
+            <TextInput value={refundReason} onChangeText={setRefundReason} placeholder="e.g. Blue shirt returned" placeholderTextColor={colors.muted} style={[styles.input, { color: colors.text, borderColor: colors.border }]} />
+            <View style={styles.modalActions}>
+              <Pressable onPress={() => setRefundExpense(null)} style={styles.cancelButton}><Text style={[styles.cancelText, { color: colors.muted }]}>Cancel</Text></Pressable>
+              <PrimaryButton title="Save refund" onPress={submitRefund} loading={refundSaving} style={{ flex: 1 }} />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </AppScreen>
   );
 }
@@ -239,4 +275,13 @@ const styles = StyleSheet.create({
   totalItem: { padding: 10, borderRadius: 8, minWidth: '30%' },
   totalName: { fontSize: 11 },
   totalAmount: { fontWeight: '700', fontSize: 13, marginTop: 2 },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' },
+  refundModal: { padding: 20, borderTopLeftRadius: 18, borderTopRightRadius: 18, gap: 10 },
+  modalTitle: { fontSize: 20, fontWeight: '800' },
+  modalSubtitle: { fontSize: 13, marginBottom: 6 },
+  inputLabel: { fontSize: 12, fontWeight: '700', marginTop: 4 },
+  input: { minHeight: 46, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, fontSize: 15 },
+  modalActions: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 },
+  cancelButton: { paddingHorizontal: 10, paddingVertical: 14 },
+  cancelText: { fontWeight: '700' },
 });
