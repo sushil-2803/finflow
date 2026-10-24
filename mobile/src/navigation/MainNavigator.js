@@ -12,6 +12,7 @@ import SavingsScreen from '../screens/savings/SavingsScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
 import { useTheme } from '../store/ThemeContext';
 import { useExpenseSheet } from '../store/ExpenseSheetContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const Tabs = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -27,6 +28,7 @@ const icons = {
 function TabNavigator() {
   const { colors } = useTheme();
   const { openExpenseSheet } = useExpenseSheet();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs.Navigator
@@ -35,8 +37,9 @@ function TabNavigator() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
         tabBarStyle: {
-          height: 66,
+          height: 66 + insets.bottom,
           paddingTop: 7,
+          paddingBottom: Math.max(insets.bottom, 6),
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
         },
