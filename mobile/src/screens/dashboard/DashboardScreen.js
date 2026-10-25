@@ -66,16 +66,22 @@ export default function DashboardScreen({ navigation }) {
 
   const flatExpenses = expenses.data?.pages.flatMap((page) => page.data) || [];
   const today = new Date();
+  const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1);
   const activeBudget =
     (budgets.data || []).find(
       (item) =>
         item.month === today.getMonth() + 1 && item.year === today.getFullYear() && !item.isClosed
     ) || (budgets.data || []).find((item) => !item.isClosed);
+  const currentMonthExpenses = useQuery({
+    queryKey: ['expenses', 'current-month', today.getFullYear(), today.getMonth() + 1],
+    queryFn: () => getExpenses({ page: 1, limit: 1000, startDate: currentMonthStart.toISOString(), endDate: nextMonthStart.toISOString() }),
+  });
   const activeGroups = (groups.data || []).filter((item) => item.status === 'active');
   const used = activeBudget ? progress(activeBudget.totalExpenses, activeBudget.budgetAmount) : 0;
 
   const refresh = async () => {
-    await Promise.all([budgets.refetch(), groups.refetch(), expenses.refetch(), refreshUser()]);
+    await Promise.all([budgets.refetch(), groups.refetch(), expenses.refetch(), currentMonthExpenses.refetch(), refreshUser()]);
   };
 
   const remove = (expense) =>
@@ -176,11 +182,13 @@ export default function DashboardScreen({ navigation }) {
               }
             >
               {activeBudget ? (
-                <View
-                  style={[
+                <Pressable
+                  onPress={() => navigation.navigate('BudgetDetails', { id: activeBudget._id })}
+                  style={({ pressed }) => [
                     styles.card,
                     { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
                     shadow,
+                    pressed && { opacity: 0.82 },
                   ]}
                 >
                   <View style={styles.rowBetween}>
@@ -227,7 +235,7 @@ export default function DashboardScreen({ navigation }) {
                     }
                     style={{ marginTop: 4 }}
                   />
-                </View>
+                </Pressable>
               ) : (
                 <View
                   style={[
@@ -246,7 +254,7 @@ export default function DashboardScreen({ navigation }) {
               )}
             </Section>
 
-            <Section title="Payment breakdown">
+            <Section title="Current month payment breakdown">
               <View
                 style={[
                   styles.card,
@@ -254,7 +262,7 @@ export default function DashboardScreen({ navigation }) {
                   shadow,
                 ]}
               >
-                <PaymentDonut expenses={flatExpenses} />
+                <PaymentDonut expenses={currentMonthExpenses.data?.data || []} />
               </View>
             </Section>
 
