@@ -182,6 +182,11 @@ const getExpenses = async (req, res, next) => {
         { seller: { $regex: req.query.search, $options: 'i' } },
       ];
     }
+    if (req.query.startDate || req.query.endDate) {
+      query.expenseDate = {};
+      if (req.query.startDate) query.expenseDate.$gte = new Date(req.query.startDate);
+      if (req.query.endDate) query.expenseDate.$lt = new Date(req.query.endDate);
+    }
 
     const aggregateQuery = { ...query, userId: new mongoose.Types.ObjectId(req.user.id) };
     if (aggregateQuery.budgetId) {
