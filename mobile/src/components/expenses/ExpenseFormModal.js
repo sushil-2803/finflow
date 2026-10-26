@@ -38,6 +38,7 @@ import { userMessage } from '../../utils/errors';
 import FormField from '../common/FormField';
 import PrimaryButton from '../common/PrimaryButton';
 import SelectField from '../common/SelectField';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const schema = z.object({
   title: z.string().trim().min(1, 'Title is required'),
@@ -253,6 +254,7 @@ function ChoiceModal({ visible, title, choices, selected, onSelect, onClose, ren
 
 export default function ExpenseFormModal({ visible, expense, defaults, onClose }) {
   const { colors, shadow } = useTheme();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const scrollRef = useRef(null);
   const [date, setDate] = useState(new Date());
@@ -393,7 +395,8 @@ export default function ExpenseFormModal({ visible, expense, defaults, onClose }
     >
       <KeyboardAvoidingView
         style={[styles.modalRoot, { backgroundColor: colors.background }]}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
       >
         {/* Sticky Header */}
         <View
@@ -691,7 +694,7 @@ export default function ExpenseFormModal({ visible, expense, defaults, onClose }
         <View
           style={[
             styles.modalFooter,
-            { backgroundColor: colors.surface, borderTopColor: colors.border },
+            { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 10) },
             shadow,
           ]}
         >

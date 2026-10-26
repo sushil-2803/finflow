@@ -25,6 +25,7 @@ export default function BudgetDetailsScreen({ route, navigation }) {
   const [refundAmount, setRefundAmount] = useState('');
   const [refundReason, setRefundReason] = useState('');
   const [refundSaving, setRefundSaving] = useState(false);
+  const [detailExpense, setDetailExpense] = useState(null);
 
   const budgetQuery = useQuery({ queryKey: ['budget', id], queryFn: () => getBudget(id) });
   const expenses = useInfiniteQuery({
@@ -217,14 +218,7 @@ export default function BudgetDetailsScreen({ route, navigation }) {
         renderItem={({ item }) => (
           <ExpenseRow
             expense={item}
-            onPress={() =>
-              Alert.alert(item.title, `${money(item.amount)} • ${item.paymentMethod}`, [
-                { text: 'Refund', onPress: () => openRefund(item) },
-                { text: 'Edit', onPress: () => openExpenseSheet({ expense: item }) },
-                { text: 'Delete', style: 'destructive', onPress: () => remove(item) },
-                { text: 'Cancel', style: 'cancel' },
-              ])
-            }
+            onPress={() => setDetailExpense(item)}
           />
         )}
         ListEmptyComponent={!expenses.isLoading && <EmptyState title="No expenses in this budget" detail="Record an expense to keep this month up to date." />}
@@ -253,6 +247,31 @@ export default function BudgetDetailsScreen({ route, navigation }) {
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+      <Modal visible={Boolean(detailExpense)} transparent animationType="fade" onRequestClose={() => setDetailExpense(null)}>
+        <View style={styles.detailBackdrop}>
+          <View style={[styles.detailModal, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>{detailExpense?.title}</Text>
+            <Text style={[styles.detailAmount, { color: colors.text }]}>{money(detailExpense?.amount || 0)}</Text>
+            <Text style={[styles.detailMeta, { color: colors.muted }]}>Original: {money(detailExpense?.originalAmount ?? detailExpense?.amount ?? 0)}</Text>
+            <Text style={[styles.detailMeta, { color: colors.muted }]}>Payment: {detailExpense?.paymentMethod || '—'}</Text>
+            <Text style={[styles.detailMeta, { color: colors.muted }]}>Date: {detailExpense?.expenseDate ? shortDate(detailExpense.expenseDate) : '—'}</Text>
+            {detailExpense?.seller ? <Text style={[styles.detailMeta, { color: colors.muted }]}>Seller: {detailExpense.seller}</Text> : null}
+            {detailExpense?.notes ? <Text style={[styles.detailMeta, { color: colors.muted }]}>Notes: {detailExpense.notes}</Text> : null}
+            <Text style={[styles.detailSection, { color: colors.text }]}>Refund history</Text>
+            {detailExpense?.refunds?.length ? detailExpense.refunds.map((refund, index) => (
+              <View key={`${refund._id || index}`} style={[styles.refundHistoryRow, { borderColor: colors.border }]}>
+                <Text style={[styles.detailMeta, { color: colors.success }]}>{money(refund.amount)} • {shortDate(refund.refundDate)}</Text>
+                <Text style={[styles.detailMeta, { color: colors.muted }]}>{refund.notes || 'Returned product'}</Text>
+              </View>
+            )) : <Text style={[styles.detailMeta, { color: colors.muted }]}>No refunds recorded.</Text>}
+            <View style={styles.detailActions}>
+              <PrimaryButton title="Edit" onPress={() => { const item = detailExpense; setDetailExpense(null); openExpenseSheet({ expense: item }); }} style={{ flex: 1 }} />
+              <PrimaryButton title="Refund" onPress={() => { const item = detailExpense; setDetailExpense(null); openRefund(item); }} tone="secondary" style={{ flex: 1 }} />
+            </View>
+            <PrimaryButton title="Delete" onPress={() => { const item = detailExpense; setDetailExpense(null); remove(item); }} tone="danger" />
+          </View>
+        </View>
       </Modal>
     </AppScreen>
   );
@@ -284,4 +303,11 @@ const styles = StyleSheet.create({
   modalActions: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 },
   cancelButton: { paddingHorizontal: 10, paddingVertical: 14 },
   cancelText: { fontWeight: '700' },
+  detailBackdrop: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: 'rgba(0,0,0,0.55)' },
+  detailModal: { width: '100%', maxWidth: 440, padding: 20, borderRadius: 18, gap: 8 },
+  detailAmount: { fontSize: 25, fontWeight: '800', marginBottom: 2 },
+  detailMeta: { fontSize: 13, lineHeight: 19 },
+  detailSection: { fontSize: 15, fontWeight: '800', marginTop: 10 },
+  refundHistoryRow: { borderWidth: 1, borderRadius: 8, padding: 9, gap: 2 },
+  detailActions: { flexDirection: 'row', gap: 10, marginTop: 10 },
 });
