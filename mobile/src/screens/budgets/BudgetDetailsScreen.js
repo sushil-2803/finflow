@@ -1,7 +1,7 @@
 import React, { useLayoutEffect, useState } from 'react';
 import { Alert, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2 } from 'lucide-react-native';
+import { Download, Plus, Trash2 } from 'lucide-react-native';
 import { closeBudget, deleteBudget, getBudget } from '../../api/budgets';
 import { addRefund, deleteExpense, getExpenses } from '../../api/expenses';
 import AppScreen from '../../components/common/AppScreen';
@@ -14,6 +14,7 @@ import { useExpenseSheet } from '../../store/ExpenseSheetContext';
 import { useTheme } from '../../store/ThemeContext';
 import { money, progress, progressColor, shortDate } from '../../utils/formatters';
 import { userMessage } from '../../utils/errors';
+import { downloadBudgetCsv } from '../../utils/csvExport';
 
 export default function BudgetDetailsScreen({ route, navigation }) {
   const { id } = route.params;
@@ -26,6 +27,7 @@ export default function BudgetDetailsScreen({ route, navigation }) {
   const [refundReason, setRefundReason] = useState('');
   const [refundSaving, setRefundSaving] = useState(false);
   const [detailExpense, setDetailExpense] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   const budgetQuery = useQuery({ queryKey: ['budget', id], queryFn: () => getBudget(id) });
   const expenses = useInfiniteQuery({
@@ -39,6 +41,21 @@ export default function BudgetDetailsScreen({ route, navigation }) {
   const budget = budgetQuery.data;
   const items = expenses.data?.pages.flatMap((page) => page.data) || [];
   const totals = expenses.data?.pages[0]?.categoryTotals || [];
+
+  const exportBudget = async () => {
+    if (!budget) return;
+
+    try {
+      setExporting(true);
+      const result = await getExpenses({ limit: 0, budgetId: id });
+      await downloadBudgetCsv(budget, result.data || []);
+    } catch (error) {
+      const message = error.isAxiosError ? userMessage(error) : error.message;
+      Alert.alert('Could not export budget', message || 'The CSV file could not be created.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const remove = (expense) =>
     Alert.alert('Delete expense?', `Delete "${expense.title}"?`, [
@@ -192,6 +209,13 @@ export default function BudgetDetailsScreen({ route, navigation }) {
                   <PrimaryButton title="Close & save" tone="secondary" onPress={closeBudgetConfirm} style={{ flex: 1 }} />
                 </View>
               )}
+              <PrimaryButton
+                title="Export CSV"
+                icon={Download}
+                tone="secondary"
+                onPress={exportBudget}
+                loading={exporting}
+              />
             </View>
             <Text style={[styles.section, { color: colors.muted }]}>CATEGORY TOTALS</Text>
             {totals.length ? (
