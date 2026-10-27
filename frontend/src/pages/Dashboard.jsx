@@ -20,6 +20,21 @@ import {
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
+const getCurrentMonthDateRange = () => {
+  const today = new Date();
+  const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  return {
+    startDate: formatDate(new Date(today.getFullYear(), today.getMonth(), 1)),
+    endDate: formatDate(new Date(today.getFullYear(), today.getMonth() + 1, 1)),
+  };
+};
+
 const Dashboard = () => {
   const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
@@ -29,6 +44,7 @@ const Dashboard = () => {
   const [openPreviousBudgets, setOpenPreviousBudgets] = useState([]);
   const [activeGroups, setActiveGroups] = useState([]);
   const [recentExpenses, setRecentExpenses] = useState([]);
+  const [paymentBreakdownExpenses, setPaymentBreakdownExpenses] = useState([]);
   const [budgets, setBudgets] = useState([]);
   const [groups, setGroups] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -40,6 +56,18 @@ const Dashboard = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
   const [selectedBudgetId, setSelectedBudgetId] = useState(location.state?.filterBudgetId || null);
+
+  const fetchPaymentBreakdown = async () => {
+    try {
+      const { startDate, endDate } = getCurrentMonthDateRange();
+      const res = await API.get(`/expenses?startDate=${startDate}&endDate=${endDate}&limit=0`);
+      if (res.data.success) {
+        setPaymentBreakdownExpenses(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching current month payment breakdown:', err);
+    }
+  };
 
   // Fetch all dashboard data
   const fetchDashboardData = async () => {
@@ -109,6 +137,10 @@ const Dashboard = () => {
     fetchDashboardData();
   }, [searchTerm, selectedBudgetId, selectedCategory]);
 
+  useEffect(() => {
+    fetchPaymentBreakdown();
+  }, []);
+
   // Handle closing active budget
   const handleCloseBudget = async (id) => {
     try {
@@ -133,6 +165,7 @@ const Dashboard = () => {
 
       if (res.data.success) {
         fetchDashboardData();
+        fetchPaymentBreakdown();
         return { success: true };
       }
     } catch (err) {
@@ -149,6 +182,7 @@ const Dashboard = () => {
       const res = await API.delete(`/expenses/${id}`);
       if (res.data.success) {
         fetchDashboardData();
+        fetchPaymentBreakdown();
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete expense');
@@ -162,7 +196,11 @@ const Dashboard = () => {
     if (!Number.isFinite(amount) || amount <= 0) return alert('Enter a valid refund amount.');
     const notes = window.prompt('Reason or product name for this refund:', '');
     if (notes === null || !notes.trim()) return alert('Enter a refund reason or product name.');
-    try { await API.post(`/expenses/${expense._id}/refunds`, { amount, notes }); fetchDashboardData(); }
+    try {
+      await API.post(`/expenses/${expense._id}/refunds`, { amount, notes });
+      fetchDashboardData();
+      fetchPaymentBreakdown();
+    }
     catch (err) { alert(err.response?.data?.message || 'Failed to record refund'); }
   };
 
@@ -196,7 +234,7 @@ const Dashboard = () => {
   // Prepare chart data (split of payment methods)
   const getChartData = () => {
     const methods = {};
-    recentExpenses.forEach((exp) => {
+    paymentBreakdownExpenses.forEach((exp) => {
       methods[exp.paymentMethod] = (methods[exp.paymentMethod] || 0) + exp.amount;
     });
 
@@ -355,7 +393,7 @@ const Dashboard = () => {
           <div className="space-y-4">
             <h2 className="text-lg font-bold text-white tracking-tight flex items-center">
               <span className="h-2 w-2 rounded-full bg-violet-500 mr-2.5"></span>
-              Payment Breakdown
+              Current month payment breakdown
             </h2>
 
             <div className="glass-card rounded-2xl p-6 border border-white/5 flex flex-col justify-between min-h-[360px]">
@@ -396,7 +434,7 @@ const Dashboard = () => {
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                       <span className="text-slate-400 text-xs uppercase font-semibold">Total Spent</span>
                       <span className="text-white text-lg font-extrabold">
-                        ₹{recentExpenses.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString('en-IN')}
+                        ₹{paymentBreakdownExpenses.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString('en-IN')}
                       </span>
                     </div>
                   </div>

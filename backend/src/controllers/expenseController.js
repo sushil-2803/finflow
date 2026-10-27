@@ -160,7 +160,8 @@ const addRefund = async (req, res, next) => {
 // @access  Private
 const getExpenses = async (req, res, next) => {
   const page = parseInt(req.query.page, 10) || 1;
-  const limit = parseInt(req.query.limit, 10) || 10;
+  const requestedLimit = parseInt(req.query.limit, 10);
+  const limit = Number.isNaN(requestedLimit) ? 10 : Math.max(requestedLimit, 0);
   const skip = (page - 1) * limit;
 
   try {
@@ -196,14 +197,18 @@ const getExpenses = async (req, res, next) => {
       aggregateQuery.groupId = new mongoose.Types.ObjectId(aggregateQuery.groupId);
     }
 
+    const expenseQuery = Expense.find(query)
+      .sort({ expenseDate: -1, createdAt: -1 })
+      .populate('budgetId', 'title month year')
+      .populate('groupId', 'title');
+
+    if (limit > 0) {
+      expenseQuery.skip(skip).limit(limit);
+    }
+
     const [total, expenses, categoryTotals] = await Promise.all([
       Expense.countDocuments(query),
-      Expense.find(query)
-        .sort({ expenseDate: -1, createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate('budgetId', 'title month year')
-        .populate('groupId', 'title'),
+      expenseQuery,
       Expense.aggregate([
         { $match: aggregateQuery },
         {
@@ -223,7 +228,7 @@ const getExpenses = async (req, res, next) => {
         total,
         page,
         limit,
-        pages: Math.ceil(total / limit),
+        pages: limit === 0 ? 1 : Math.ceil(total / limit),
       },
       categoryTotals: categoryTotals.map((item) => ({
         category: item._id || 'Uncategorized',
