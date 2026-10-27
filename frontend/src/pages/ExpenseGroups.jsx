@@ -4,7 +4,8 @@ import API from '../api/axios';
 import GroupCard from '../components/GroupCard';
 import ExpenseTable from '../components/ExpenseTable';
 import ExpenseForm from '../components/ExpenseForm';
-import { FolderKanban, Plus, ArrowLeft, Trash2, Calendar, IndianRupee, HelpCircle, CheckCircle, AlertCircle, Lock } from 'lucide-react';
+import { FolderKanban, Plus, ArrowLeft, Trash2, Calendar, IndianRupee, HelpCircle, CheckCircle, AlertCircle, Lock, Download } from 'lucide-react';
+import { downloadGroupCsv } from '../utils/csvExport';
 
 const ExpenseGroups = () => {
   const location = useLocation();
@@ -33,6 +34,7 @@ const ExpenseGroups = () => {
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [exportingGroupId, setExportingGroupId] = useState(null);
 
   const fetchGroups = async () => {
     setLoading(true);
@@ -153,6 +155,27 @@ const ExpenseGroups = () => {
       } catch (err) {
         setError('Failed to delete group');
       }
+    }
+  };
+
+  const handleExportGroup = async (group) => {
+    setExportingGroupId(group._id);
+    setError('');
+
+    try {
+      const res = await API.get('/expenses', {
+        params: { groupId: group._id, limit: 0 },
+      });
+
+      if (!res.data.success) throw new Error('Failed to load group expenses');
+
+      const filename = downloadGroupCsv(group, res.data.data);
+      setSuccess(`Downloaded ${filename}`);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to export group CSV');
+    } finally {
+      setExportingGroupId(null);
     }
   };
 
@@ -282,7 +305,11 @@ const ExpenseGroups = () => {
                     onClick={() => handleSelectGroup(group)}
                     className="cursor-pointer"
                   >
-                    <GroupCard group={group} />
+                    <GroupCard
+                      group={group}
+                      onExport={handleExportGroup}
+                      isExporting={exportingGroupId === group._id}
+                    />
                   </div>
                 ))}
               </div>
@@ -302,6 +329,18 @@ const ExpenseGroups = () => {
               </button>
 
               <div className="flex flex-wrap items-center justify-end gap-2">
+                <button
+                  onClick={() => handleExportGroup(selectedGroup)}
+                  disabled={exportingGroupId === selectedGroup._id}
+                  className="flex items-center space-x-1.5 text-xs text-indigo-300 hover:text-indigo-200 hover:bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/15 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                >
+                  {exportingGroupId === selectedGroup._id ? (
+                    <span className="h-4 w-4 border-2 border-indigo-300 border-t-transparent rounded-full animate-spin"></span>
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  <span>{exportingGroupId === selectedGroup._id ? 'Exporting...' : 'Export CSV'}</span>
+                </button>
                 {selectedGroup.status === 'active' && (
                   <button
                     onClick={handleCloseGroup}

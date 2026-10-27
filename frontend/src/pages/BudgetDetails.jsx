@@ -12,8 +12,10 @@ import {
   HelpCircle,
   CheckCircle,
   AlertCircle,
-  Trash2
+  Trash2,
+  Download
 } from 'lucide-react';
+import { downloadBudgetCsv } from '../utils/csvExport';
 
 const BudgetDetails = () => {
   const { id } = useParams();
@@ -26,6 +28,7 @@ const BudgetDetails = () => {
   const [expensesLoading, setExpensesLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
 
   // Form / modal states
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -123,6 +126,30 @@ const BudgetDetails = () => {
         setError(err.response?.data?.message || 'Failed to delete budget');
         setTimeout(() => setError(''), 3000);
       }
+    }
+  };
+
+  const handleExportBudget = async () => {
+    if (!budget) return;
+
+    setIsExporting(true);
+    setError('');
+
+    try {
+      const res = await API.get('/expenses', {
+        params: { budgetId: budget._id, limit: 0 },
+      });
+
+      if (!res.data.success) throw new Error('Failed to load budget expenses');
+
+      const filename = downloadBudgetCsv(budget, res.data.data);
+      setSuccess(`Downloaded ${filename}`);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to export budget CSV');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -239,13 +266,27 @@ const BudgetDetails = () => {
           <span>Back to budgets list</span>
         </button>
 
-        <button
-          onClick={handleBudgetDelete}
-          className="flex items-center space-x-1.5 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 px-3 py-1.5 rounded-lg border border-rose-500/10 transition-colors"
-        >
-          <Trash2 className="h-4 w-4" />
-          <span>Delete Budget</span>
-        </button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            onClick={handleExportBudget}
+            disabled={isExporting}
+            className="flex items-center space-x-1.5 text-xs text-indigo-300 hover:text-indigo-200 hover:bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/15 transition-colors disabled:opacity-50 disabled:cursor-wait"
+          >
+            {isExporting ? (
+              <span className="h-4 w-4 border-2 border-indigo-300 border-t-transparent rounded-full animate-spin"></span>
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            <span>{isExporting ? 'Exporting...' : 'Export CSV'}</span>
+          </button>
+          <button
+            onClick={handleBudgetDelete}
+            className="flex items-center space-x-1.5 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 px-3 py-1.5 rounded-lg border border-rose-500/10 transition-colors"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span>Delete Budget</span>
+          </button>
+        </div>
       </div>
 
       {error && (

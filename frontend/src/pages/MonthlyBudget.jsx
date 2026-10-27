@@ -4,6 +4,7 @@ import API from '../api/axios';
 import BudgetCard from '../components/BudgetCard';
 import { CalendarDays, Plus, HelpCircle, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { downloadBudgetCsv } from '../utils/csvExport';
 
 const MonthlyBudget = () => {
   const { refreshUser } = useAuth();
@@ -12,6 +13,7 @@ const MonthlyBudget = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [exportingBudgetId, setExportingBudgetId] = useState(null);
 
   // Form states
   const [title, setTitle] = useState('');
@@ -76,6 +78,27 @@ const MonthlyBudget = () => {
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to close budget');
+    }
+  };
+
+  const handleExportBudget = async (budget) => {
+    setExportingBudgetId(budget._id);
+    setError('');
+
+    try {
+      const res = await API.get('/expenses', {
+        params: { budgetId: budget._id, limit: 0 },
+      });
+
+      if (!res.data.success) throw new Error('Failed to load budget expenses');
+
+      const filename = downloadBudgetCsv(budget, res.data.data);
+      setSuccess(`Downloaded ${filename}`);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to export budget CSV');
+    } finally {
+      setExportingBudgetId(null);
     }
   };
 
@@ -169,6 +192,8 @@ const MonthlyBudget = () => {
                   budget={budget}
                   onCloseBudget={handleCloseBudget}
                   onSelectBudget={(id) => navigate(`/budgets/${id}`)}
+                  onExport={handleExportBudget}
+                  isExporting={exportingBudgetId === budget._id}
                 />
               ))}
             </div>
@@ -188,6 +213,8 @@ const MonthlyBudget = () => {
                   key={budget._id} 
                   budget={budget} 
                   onSelectBudget={(id) => navigate(`/budgets/${id}`)}
+                  onExport={handleExportBudget}
+                  isExporting={exportingBudgetId === budget._id}
                 />
               ))}
             </div>
