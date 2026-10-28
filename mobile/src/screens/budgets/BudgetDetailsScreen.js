@@ -22,6 +22,7 @@ export default function BudgetDetailsScreen({ route, navigation }) {
   const { openExpenseSheet } = useExpenseSheet();
   const { colors, shadow } = useTheme();
   const [category, setCategory] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [refundExpense, setRefundExpense] = useState(null);
   const [refundAmount, setRefundAmount] = useState('');
   const [refundReason, setRefundReason] = useState('');
@@ -31,8 +32,14 @@ export default function BudgetDetailsScreen({ route, navigation }) {
 
   const budgetQuery = useQuery({ queryKey: ['budget', id], queryFn: () => getBudget(id) });
   const expenses = useInfiniteQuery({
-    queryKey: ['expenses', 'budget', id, category],
-    queryFn: ({ pageParam = 1 }) => getExpenses({ page: pageParam, limit: 15, budgetId: id, category: category || undefined }),
+    queryKey: ['expenses', 'budget', id, category, paymentMethod],
+    queryFn: ({ pageParam = 1 }) => getExpenses({
+      page: pageParam,
+      limit: 15,
+      budgetId: id,
+      category: category || undefined,
+      paymentMethod: paymentMethod || undefined,
+    }),
     getNextPageParam: (last) => last.pagination.page < last.pagination.pages ? last.pagination.page + 1 : undefined,
     initialPageParam: 1,
   });
@@ -41,6 +48,7 @@ export default function BudgetDetailsScreen({ route, navigation }) {
   const budget = budgetQuery.data;
   const items = expenses.data?.pages.flatMap((page) => page.data) || [];
   const totals = expenses.data?.pages[0]?.categoryTotals || [];
+  const paymentTotals = expenses.data?.pages[0]?.paymentMethodTotals || [];
 
   const exportBudget = async () => {
     if (!budget) return;
@@ -236,7 +244,33 @@ export default function BudgetDetailsScreen({ route, navigation }) {
                 ))}
               </View>
             ) : null}
-            <Text style={[styles.section, { color: colors.muted }]}>TRANSACTIONS</Text>
+            <Text style={[styles.section, { color: colors.muted }]}>PAYMENT METHODS</Text>
+            {paymentTotals.length ? (
+              <View style={styles.totals}>
+                {paymentTotals.map((item) => (
+                  <Pressable
+                    key={item.paymentMethod}
+                    onPress={() => setPaymentMethod(paymentMethod === item.paymentMethod ? '' : item.paymentMethod)}
+                    style={[
+                      styles.totalItem,
+                      { backgroundColor: colors.surfaceMuted },
+                      paymentMethod === item.paymentMethod && { backgroundColor: colors.primaryLight, borderWidth: 1, borderColor: colors.primary },
+                    ]}
+                  >
+                    <Text style={[styles.totalName, { color: colors.muted }]}>{item.paymentMethod}</Text>
+                    <Text style={[styles.totalAmount, { color: colors.text }]}>{money(item.total)}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            <View style={styles.transactionsHead}>
+              <Text style={[styles.section, { color: colors.muted }]}>TRANSACTIONS</Text>
+              {(category || paymentMethod) ? (
+                <Pressable onPress={() => { setCategory(''); setPaymentMethod(''); }} hitSlop={8}>
+                  <Text style={[styles.clearFilters, { color: colors.primary }]}>Clear filters</Text>
+                </Pressable>
+              ) : null}
+            </View>
           </>
         }
         renderItem={({ item }) => (
@@ -245,7 +279,12 @@ export default function BudgetDetailsScreen({ route, navigation }) {
             onPress={() => setDetailExpense(item)}
           />
         )}
-        ListEmptyComponent={!expenses.isLoading && <EmptyState title="No expenses in this budget" detail="Record an expense to keep this month up to date." />}
+        ListEmptyComponent={!expenses.isLoading && (
+          <EmptyState
+            title={(category || paymentMethod) ? 'No matching transactions' : 'No expenses in this budget'}
+            detail={(category || paymentMethod) ? 'Try another category or payment method.' : 'Record an expense to keep this month up to date.'}
+          />
+        )}
         ListFooterComponent={
           expenses.hasNextPage
             ? <PrimaryButton title="Load more" onPress={expenses.fetchNextPage} loading={expenses.isFetchingNextPage} tone="secondary" />
@@ -314,6 +353,8 @@ const styles = StyleSheet.create({
   locked: { borderRadius: 8, padding: 12 },
   lockedText: { fontSize: 13, fontWeight: '700' },
   section: { fontSize: 11, letterSpacing: 0.8, fontWeight: '800', marginTop: 10 },
+  transactionsHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  clearFilters: { fontSize: 12, fontWeight: '700' },
   totals: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   totalItem: { padding: 10, borderRadius: 8, minWidth: '30%' },
   totalName: { fontSize: 11 },
