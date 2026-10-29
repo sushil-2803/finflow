@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api/axios';
 import BudgetCard from '../components/BudgetCard';
@@ -6,26 +6,51 @@ import { CalendarDays, Plus, HelpCircle, CheckCircle, AlertCircle, Sparkles } fr
 import { useAuth } from '../context/AuthContext';
 import { downloadBudgetCsv } from '../utils/csvExport';
 
+const toDateInputValue = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getMonthDateRange = (year, month) => ({
+  startDate: toDateInputValue(new Date(year, month - 1, 1)),
+  endDate: toDateInputValue(new Date(year, month, 0)),
+});
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 const MonthlyBudget = () => {
   const { refreshUser } = useAuth();
   const navigate = useNavigate();
   const [budgets, setBudgets] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [exportingBudgetId, setExportingBudgetId] = useState(null);
 
   // Form states
-  const [title, setTitle] = useState('');
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [year, setYear] = useState(new Date().getFullYear());
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [title, setTitle] = useState(() => {
+    const today = new Date();
+    return `${MONTH_NAMES[today.getMonth()]} ${today.getFullYear()} Budget`;
+  });
+  const [month, setMonth] = useState(() => new Date().getMonth() + 1);
+  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [startDate, setStartDate] = useState(() => {
+    const today = new Date();
+    return getMonthDateRange(today.getFullYear(), today.getMonth() + 1).startDate;
+  });
+  const [endDate, setEndDate] = useState(() => {
+    const today = new Date();
+    return getMonthDateRange(today.getFullYear(), today.getMonth() + 1).endDate;
+  });
   const [budgetAmount, setBudgetAmount] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchBudgets = async () => {
-    setLoading(true);
     try {
       const res = await API.get('/budgets');
       if (res.data.success) {
@@ -39,33 +64,53 @@ const MonthlyBudget = () => {
   };
 
   useEffect(() => {
-    fetchBudgets();
+    let cancelled = false;
 
-    // Default dates populate helper
-    const today = new Date();
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
-      .toISOString().substring(0, 10);
-    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-      .toISOString().substring(0, 10);
+    API.get('/budgets')
+      .then((res) => {
+        if (!cancelled && res.data.success) {
+          setBudgets(res.data.data);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error('Error fetching budgets:', err);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
 
-    setStartDate(firstDay);
-    setEndDate(lastDay);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Sync dates when month or year changes
-  useEffect(() => {
-    const firstDay = new Date(year, month - 1, 1).toISOString().substring(0, 10);
-    const lastDay = new Date(year, month, 0).toISOString().substring(0, 10);
-    setStartDate(firstDay);
-    setEndDate(lastDay);
-    
-    // Auto-update title e.g. "June 2026 Budget"
-    const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    setTitle(`${months[month - 1]} ${year} Budget`);
-  }, [month, year]);
+  const syncPeriodFields = (nextMonth, nextYear) => {
+    const range = getMonthDateRange(nextYear, nextMonth);
+    setStartDate(range.startDate);
+    setEndDate(range.endDate);
+    setTitle(`${MONTH_NAMES[nextMonth - 1]} ${nextYear} Budget`);
+  };
+
+  const handleMonthChange = (value) => {
+    const nextMonth = parseInt(value, 10);
+    const currentYear = parseInt(year, 10);
+    setMonth(nextMonth);
+    if (Number.isInteger(currentYear)) {
+      syncPeriodFields(nextMonth, currentYear);
+    }
+  };
+
+  const handleYearChange = (value) => {
+    const nextYear = parseInt(value, 10);
+    setYear(value);
+    if (Number.isInteger(nextYear) && nextYear >= 2020 && nextYear <= 2100) {
+      syncPeriodFields(month, nextYear);
+    }
+  };
 
   const handleCloseBudget = async (id) => {
     try {
@@ -128,8 +173,8 @@ const MonthlyBudget = () => {
         title: title.trim(),
         month: parseInt(month),
         year: parseInt(year),
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        startDate,
+        endDate,
         budgetAmount: amount,
       });
 
@@ -253,7 +298,7 @@ const MonthlyBudget = () => {
                 <label className="text-xs uppercase font-bold text-slate-400 block tracking-wider">Month</label>
                 <select
                   value={month}
-                  onChange={(e) => setMonth(parseInt(e.target.value))}
+                  onChange={(e) => handleMonthChange(e.target.value)}
                   className="glass-input w-full text-xs"
                   disabled={isSubmitting}
                 >
@@ -272,7 +317,7 @@ const MonthlyBudget = () => {
                   min="2020"
                   max="2100"
                   value={year}
-                  onChange={(e) => setYear(parseInt(e.target.value))}
+                  onChange={(e) => handleYearChange(e.target.value)}
                   className="glass-input w-full text-xs"
                   disabled={isSubmitting}
                   required

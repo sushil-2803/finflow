@@ -1,6 +1,8 @@
 import React from 'react';
 import { Edit2, Trash2, Calendar, ShoppingBag, CreditCard, Tag, ArrowLeft, ArrowRight, Search, PiggyBank, RotateCcw } from 'lucide-react';
 
+const PAYMENT_METHODS = ['UPI', 'Cash', 'Credit Card', 'Debit Card', 'Net Banking', 'Wallet', 'Other'];
+
 const ExpenseTable = ({
   expenses,
   pagination,
@@ -14,9 +16,16 @@ const ExpenseTable = ({
   onCategoryChange,
   categories = [],
   categoryTotals = [],
+  selectedPaymentMethod = '',
+  onPaymentMethodChange,
+  paymentMethodTotals = [],
   loading
 }) => {
   const { page = 1, pages = 1, total = 0 } = pagination || {};
+  const categoryOptions = [...new Set([
+    ...categories,
+    ...categoryTotals.map((item) => item.category),
+  ])];
 
   const getPaymentMethodColor = (method) => {
     switch (method) {
@@ -42,47 +51,96 @@ const ExpenseTable = ({
     <div className="glass-card rounded-2xl border border-white/5 overflow-hidden">
       {/* Search & Utility Bar */}
       <div className="p-5 border-b border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <h3 className="text-base font-bold text-white self-start sm:self-center">Recent Transactions</h3>
-        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-        <select
-          value={selectedCategory}
-          onChange={(e) => onCategoryChange && onCategoryChange(e.target.value)}
-          className="glass-input !py-1.5 text-xs w-full sm:w-44"
-          disabled={!onCategoryChange}
-        >
-          <option value="" className="bg-slate-900 text-white">All categories</option>
-          {categories.map((category) => (
-            <option key={category} value={category} className="bg-slate-900 text-white">
-              {category}
-            </option>
-          ))}
-        </select>
-        <div className="relative w-full sm:max-w-xs">
-          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-            <Search className="h-4 w-4" />
-          </span>
-          <input
-            type="text"
-            placeholder="Search by title or seller..."
-            value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="glass-input !pl-9 !pr-4 !py-1.5 text-xs w-full"
-          />
-        </div>
+        <h3 className="text-base font-bold text-white self-start sm:self-center shrink-0">Recent Transactions</h3>
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:justify-end gap-3 w-full sm:flex-1">
+          <select
+            value={selectedCategory}
+            onChange={(e) => onCategoryChange && onCategoryChange(e.target.value)}
+            className="glass-input !py-1.5 text-xs w-full sm:w-44"
+            disabled={!onCategoryChange}
+          >
+            <option value="" className="bg-slate-900 text-white">All categories</option>
+            {categoryOptions.map((category) => (
+              <option key={category} value={category} className="bg-slate-900 text-white">
+                {category}
+              </option>
+            ))}
+          </select>
+          {onPaymentMethodChange && (
+            <select
+              value={selectedPaymentMethod}
+              onChange={(e) => onPaymentMethodChange(e.target.value)}
+              className="glass-input !py-1.5 text-xs w-full sm:w-44"
+            >
+              <option value="" className="bg-slate-900 text-white">All payment methods</option>
+              {PAYMENT_METHODS.map((method) => (
+                <option key={method} value={method} className="bg-slate-900 text-white">
+                  {method}
+                </option>
+              ))}
+            </select>
+          )}
+          <div className="relative w-full sm:max-w-xs">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              <Search className="h-4 w-4" />
+            </span>
+            <input
+              type="text"
+              placeholder="Search by title or seller..."
+              value={searchTerm}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="glass-input !pl-9 !pr-4 !py-1.5 text-xs w-full"
+            />
+          </div>
         </div>
       </div>
 
       {categoryTotals.length > 0 && (
-        <div className="px-5 py-3 border-b border-white/5 flex flex-wrap gap-2">
+        <div className="px-5 py-3 border-b border-white/5 flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mr-1">Categories</span>
           {categoryTotals.map((item) => (
-            <span
+            <button
+              type="button"
               key={item.category}
-              className="inline-flex items-center gap-1.5 bg-slate-800/70 text-slate-300 border border-white/5 px-2.5 py-1 rounded-lg text-xs"
+              onClick={() => onCategoryChange?.(selectedCategory === item.category ? '' : item.category)}
+              disabled={!onCategoryChange}
+              aria-pressed={selectedCategory === item.category}
+              className={`inline-flex items-center gap-1.5 border px-2.5 py-1 rounded-lg text-xs transition-colors disabled:cursor-default ${
+                selectedCategory === item.category
+                  ? 'bg-indigo-500/15 text-indigo-200 border-indigo-500/40'
+                  : 'bg-slate-800/70 text-slate-300 border-white/5 hover:border-indigo-500/30 hover:text-white'
+              }`}
             >
               <Tag className="h-3 w-3 text-indigo-400" />
               <span className="font-medium">{item.category}</span>
               <span className="text-slate-500">₹{item.total.toLocaleString('en-IN')}</span>
-            </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {paymentMethodTotals.length > 0 && (
+        <div className="px-5 py-3 border-b border-white/5 flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mr-1">Payment methods</span>
+          {paymentMethodTotals.map((item) => (
+            <button
+              type="button"
+              key={item.paymentMethod}
+              onClick={() => onPaymentMethodChange?.(
+                selectedPaymentMethod === item.paymentMethod ? '' : item.paymentMethod
+              )}
+              disabled={!onPaymentMethodChange}
+              aria-pressed={selectedPaymentMethod === item.paymentMethod}
+              className={`inline-flex items-center gap-1.5 border px-2.5 py-1 rounded-lg text-xs transition-colors disabled:cursor-default ${
+                selectedPaymentMethod === item.paymentMethod
+                  ? 'bg-indigo-500/15 text-indigo-200 border-indigo-500/40'
+                  : 'bg-slate-800/70 text-slate-300 border-white/5 hover:border-indigo-500/30 hover:text-white'
+              }`}
+            >
+              <CreditCard className="h-3 w-3 text-indigo-400" />
+              <span className="font-medium">{item.paymentMethod}</span>
+              <span className="text-slate-500">₹{item.total.toLocaleString('en-IN')}</span>
+            </button>
           ))}
         </div>
       )}
