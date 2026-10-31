@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API from '../api/axios';
 import BudgetCard from '../components/BudgetCard';
@@ -7,9 +7,6 @@ import ExpenseForm from '../components/ExpenseForm';
 import {
   ArrowLeft,
   Plus,
-  CalendarDays,
-  IndianRupee,
-  HelpCircle,
   CheckCircle,
   AlertCircle,
   Trash2
@@ -23,7 +20,7 @@ const BudgetDetails = () => {
   const [expenses, setExpenses] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
   const [loading, setLoading] = useState(true);
-  const [expensesLoading, setExpensesLoading] = useState(false);
+  const [expensesLoading, setExpensesLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -33,8 +30,10 @@ const BudgetDetails = () => {
   const [budgets, setBudgets] = useState([]);
   const [groups, setGroups] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [categoryTotals, setCategoryTotals] = useState([]);
+  const expensesRequestId = useRef(0);
 
   // Fetch budget detail and its expenses
   const fetchBudgetDetails = async () => {
@@ -53,22 +52,30 @@ const BudgetDetails = () => {
   };
 
   const fetchBudgetExpenses = async (page = 1) => {
+    const requestId = ++expensesRequestId.current;
     try {
       setExpensesLoading(true);
       let url = `/expenses?page=${page}&limit=10&budgetId=${id}`;
       if (selectedCategory) {
         url += `&category=${encodeURIComponent(selectedCategory)}`;
       }
+      if (searchTerm.trim()) {
+        url += `&search=${encodeURIComponent(searchTerm.trim())}`;
+      }
       const res = await API.get(url);
-      if (res.data.success) {
+      if (requestId === expensesRequestId.current && res.data.success) {
         setExpenses(res.data.data);
         setPagination(res.data.pagination);
         setCategoryTotals(res.data.categoryTotals || []);
       }
     } catch (err) {
-      console.error('Error fetching budget expenses:', err);
+      if (requestId === expensesRequestId.current) {
+        console.error('Error fetching budget expenses:', err);
+      }
     } finally {
-      setExpensesLoading(false);
+      if (requestId === expensesRequestId.current) {
+        setExpensesLoading(false);
+      }
     }
   };
 
@@ -94,9 +101,13 @@ const BudgetDetails = () => {
 
   useEffect(() => {
     fetchBudgetDetails();
-    fetchBudgetExpenses(1);
     fetchLookupData();
-  }, [id, selectedCategory]);
+  }, [id]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => fetchBudgetExpenses(1), 250);
+    return () => clearTimeout(timer);
+  }, [id, selectedCategory, searchTerm]);
 
   const handleCloseBudget = async (budgetId) => {
     try {
@@ -291,28 +302,21 @@ const BudgetDetails = () => {
           </div>
 
           <div className="relative">
-            {expensesLoading && expenses.length === 0 ? (
-              <div className="py-20 text-center text-slate-400 text-xs">
-                <span className="h-6 w-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block"></span>
-                <p className="mt-2">Retrieving transactions...</p>
-              </div>
-            ) : (
-              <ExpenseTable
-                expenses={expenses}
-                pagination={pagination}
-                onPageChange={(page) => fetchBudgetExpenses(page)}
-                onEdit={openEditExpenseModal}
-                onDelete={handleExpenseDelete}
-                onRefund={handleExpenseRefund}
-                searchTerm=""
-                onSearchChange={() => {}}
-                selectedCategory={selectedCategory}
-                onCategoryChange={setSelectedCategory}
-                categories={categories}
-                categoryTotals={categoryTotals}
-                loading={expensesLoading}
-              />
-            )}
+            <ExpenseTable
+              expenses={expenses}
+              pagination={pagination}
+              onPageChange={(page) => fetchBudgetExpenses(page)}
+              onEdit={openEditExpenseModal}
+              onDelete={handleExpenseDelete}
+              onRefund={handleExpenseRefund}
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              selectedCategory={selectedCategory}
+              onCategoryChange={setSelectedCategory}
+              categories={categories}
+              categoryTotals={categoryTotals}
+              loading={expensesLoading}
+            />
           </div>
         </div>
       </div>
