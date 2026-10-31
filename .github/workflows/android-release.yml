@@ -1,0 +1,67 @@
+name: Android APK Release
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    name: Build and publish APK
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Set up Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install mobile dependencies
+        run: npm ci
+
+      - name: Build APK on EAS
+        run: eas build --platform android --profile production --non-interactive --wait --json > eas-build.json
+
+      - name: Download the completed APK
+        id: apk
+        shell: bash
+        run: |
+          build_id="$(node -e "const fs=require('fs'); const value=JSON.parse(fs.readFileSync('eas-build.json','utf8')); const build=Array.isArray(value) ? value.at(-1) : value; const id=build.id ?? build.buildId; if (!id) process.exit(1); process.stdout.write(id)")"
+          eas build:download --build-id "$build_id" --non-interactive
+          apk_path="$(find . -type f -name '*.apk' -print -quit)"
+          test -n "$apk_path"
+          mkdir -p release
+          cp "$apk_path" "release/finflow-${GITHUB_SHA::7}.apk"
+          echo "path=mobile/$([[ -f release/finflow-${GITHUB_SHA::7}.apk ]] && echo release/finflow-${GITHUB_SHA::7}.apk)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-${{ github.sha }}
+          name: Android build ${{ github.sha }}
+          generate_release_notes: true
+          prerelease: true
+          files: ${{ steps.apk.outputs.path }}
