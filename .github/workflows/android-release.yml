@@ -45,17 +45,44 @@ jobs:
       - name: Build APK on EAS
         run: eas build --platform android --profile production --non-interactive --wait --json > eas-build.json
 
+     
       - name: Download the completed APK
         id: apk
         shell: bash
         run: |
-          build_id="$(node -e "const fs=require('fs'); const value=JSON.parse(fs.readFileSync('eas-build.json','utf8')); const build=Array.isArray(value) ? value.at(-1) : value; const id=build.id ?? build.buildId; if (!id) process.exit(1); process.stdout.write(id)")"
-          eas build:download --build-id "$build_id" --non-interactive
-          apk_path="$(find . -type f -name '*.apk' -print -quit)"
+          set -euo pipefail
+
+          build_id="$(node -e "
+            const fs = require('fs');
+            const value = JSON.parse(fs.readFileSync('eas-build.json', 'utf8'));
+            const build = Array.isArray(value) ? value.at(-1) : value;
+            const id = build.id ?? build.buildId;
+            if (!id) throw new Error('Build ID not found');
+            process.stdout.write(id);
+          ")"
+
+          # Capture the EAS download output.
+          download_log="$(eas build:download \
+            --build-id "$build_id" \
+            --non-interactive 2>&1)"
+
+          echo "$download_log"
+
+          # Extract the downloaded APK's absolute path.
+          apk_path="$(printf '%s\n' "$download_log" |
+            sed -n 's/^Build downloaded to //p' | tail -n 1)"
+
           test -n "$apk_path"
+          test -s "$apk_path"
+
           mkdir -p release
-          cp "$apk_path" "release/finflow-${GITHUB_SHA::7}.apk"
-          echo "path=mobile/$([[ -f release/finflow-${GITHUB_SHA::7}.apk ]] && echo release/finflow-${GITHUB_SHA::7}.apk)" >> "$GITHUB_OUTPUT"
+          destination="release/finflow-${GITHUB_SHA::7}.apk"
+
+          cp "$apk_path" "$destination"
+          test -s "$destination"
+
+          echo "path=mobile/$destination" >> "$GITHUB_OUTPUT"
+
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
