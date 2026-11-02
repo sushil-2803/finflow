@@ -5,6 +5,19 @@ const User = require('../models/User');
 const SavingsTransaction = require('../models/SavingsTransaction');
 const mongoose = require('mongoose');
 
+const toAggregateQuery = (query) => {
+  const aggregateQuery = { ...query, userId: new mongoose.Types.ObjectId(query.userId) };
+
+  if (aggregateQuery.budgetId) {
+    aggregateQuery.budgetId = new mongoose.Types.ObjectId(aggregateQuery.budgetId);
+  }
+  if (aggregateQuery.groupId) {
+    aggregateQuery.groupId = new mongoose.Types.ObjectId(aggregateQuery.groupId);
+  }
+
+  return aggregateQuery;
+};
+
 // @desc    Create a new expense
 // @route   POST /api/expenses
 // @access  Private
@@ -175,7 +188,12 @@ const getExpenses = async (req, res, next) => {
       query.groupId = req.query.groupId;
     }
     if (req.query.category) {
-      query.category = req.query.category;
+      query.category = req.query.category === 'Uncategorized'
+        ? { $in: ['', null] }
+        : req.query.category;
+    }
+    if (req.query.paymentMethod) {
+      query.paymentMethod = req.query.paymentMethod;
     }
     if (req.query.search) {
       query.$or = [
@@ -189,13 +207,15 @@ const getExpenses = async (req, res, next) => {
       if (req.query.endDate) query.expenseDate.$lt = new Date(req.query.endDate);
     }
 
-    const aggregateQuery = { ...query, userId: new mongoose.Types.ObjectId(req.user.id) };
-    if (aggregateQuery.budgetId) {
-      aggregateQuery.budgetId = new mongoose.Types.ObjectId(aggregateQuery.budgetId);
-    }
-    if (aggregateQuery.groupId) {
-      aggregateQuery.groupId = new mongoose.Types.ObjectId(aggregateQuery.groupId);
-    }
+    // Each facet ignores its own active filter so users can switch directly
+    // between categories or payment methods without clearing the other filter.
+    const categoryFacetQuery = { ...query };
+    delete categoryFacetQuery.category;
+    const paymentMethodFacetQuery = { ...query };
+    delete paymentMethodFacetQuery.paymentMethod;
+
+    const categoryAggregateQuery = toAggregateQuery(categoryFacetQuery);
+    const paymentMethodAggregateQuery = toAggregateQuery(paymentMethodFacetQuery);
 
     const expenseQuery = Expense.find(query)
       .sort({ expenseDate: -1, createdAt: -1 })
@@ -206,14 +226,25 @@ const getExpenses = async (req, res, next) => {
       expenseQuery.skip(skip).limit(limit);
     }
 
-    const [total, expenses, categoryTotals] = await Promise.all([
+    const [total, expenses, categoryTotals, paymentMethodTotals] = await Promise.all([
       Expense.countDocuments(query),
       expenseQuery,
       Expense.aggregate([
-        { $match: aggregateQuery },
+        { $match: categoryAggregateQuery },
         {
           $group: {
             _id: { $ifNull: ['$category', 'Uncategorized'] },
+            total: { $sum: '$amount' },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { total: -1, _id: 1 } },
+      ]),
+      Expense.aggregate([
+        { $match: paymentMethodAggregateQuery },
+        {
+          $group: {
+            _id: '$paymentMethod',
             total: { $sum: '$amount' },
             count: { $sum: 1 },
           },
@@ -232,6 +263,11 @@ const getExpenses = async (req, res, next) => {
       },
       categoryTotals: categoryTotals.map((item) => ({
         category: item._id || 'Uncategorized',
+        total: item.total,
+        count: item.count,
+      })),
+      paymentMethodTotals: paymentMethodTotals.map((item) => ({
+        paymentMethod: item._id,
         total: item.total,
         count: item.count,
       })),

@@ -77,5 +77,6 @@ ExpenseSchema.index({ userId: 1, expenseDate: -1 });
 ExpenseSchema.index({ budgetId: 1 });
 ExpenseSchema.index({ groupId: 1 });
 ExpenseSchema.index({ userId: 1, category: 1 });
+ExpenseSchema.index({ userId: 1, paymentMethod: 1 });
 
 module.exports = mongoose.model('Expense', ExpenseSchema);

@@ -35,13 +35,14 @@ const BudgetDetails = () => {
   const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
   const [categoryTotals, setCategoryTotals] = useState([]);
+  const [paymentMethodTotals, setPaymentMethodTotals] = useState([]);
   const expensesRequestId = useRef(0);
 
   // Fetch budget detail and its expenses
   const fetchBudgetDetails = async () => {
     try {
-      setLoading(true);
       const res = await API.get(`/budgets/${id}`);
       if (res.data.success) {
         setBudget(res.data.data);
@@ -57,11 +58,12 @@ const BudgetDetails = () => {
   const fetchBudgetExpenses = async (page = 1) => {
     const requestId = ++expensesRequestId.current;
     try {
-      setExpensesLoading(true);
       let url = `/expenses?page=${page}&limit=10&budgetId=${id}`;
       if (selectedCategory) {
         url += `&category=${encodeURIComponent(selectedCategory)}`;
       }
+      if (selectedPaymentMethod) {
+        url += `&paymentMethod=${encodeURIComponent(selectedPaymentMethod)}`;
       if (searchTerm.trim()) {
         url += `&search=${encodeURIComponent(searchTerm.trim())}`;
       }
@@ -70,6 +72,7 @@ const BudgetDetails = () => {
         setExpenses(res.data.data);
         setPagination(res.data.pagination);
         setCategoryTotals(res.data.categoryTotals || []);
+        setPaymentMethodTotals(res.data.paymentMethodTotals || []);
       }
     } catch (err) {
       if (requestId === expensesRequestId.current) {
@@ -82,27 +85,94 @@ const BudgetDetails = () => {
     }
   };
 
-  // Fetch lookup lists for form modals
-  const fetchLookupData = async () => {
-    try {
-      const budgetRes = await API.get('/budgets');
-      if (budgetRes.data.success) {
-        setBudgets(budgetRes.data.data);
-      }
-      const groupRes = await API.get('/groups');
-      if (groupRes.data.success) {
-        setGroups(groupRes.data.data);
-      }
-      const categoryRes = await API.get('/categories');
-      if (categoryRes.data.success) {
-        setCategories(categoryRes.data.data);
-      }
-    } catch (err) {
-      console.error('Failed to load lookup data:', err);
-    }
-  };
+  useEffect(() => {
+    let cancelled = false;
+
+    API.get(`/budgets/${id}`)
+      .then((res) => {
+        if (!cancelled && res.data.success) {
+          setBudget(res.data.data);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error('Error fetching budget details:', err);
+          setError(err.response?.data?.message || 'Failed to load budget details');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    Promise.all([
+      API.get('/budgets'),
+      API.get('/groups'),
+      API.get('/categories'),
+    ])
+      .then(([budgetRes, groupRes, categoryRes]) => {
+        if (cancelled) return;
+        if (budgetRes.data.success) setBudgets(budgetRes.data.data);
+        if (groupRes.data.success) setGroups(groupRes.data.data);
+        if (categoryRes.data.success) setCategories(categoryRes.data.data);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error('Failed to load lookup data:', err);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    API.get('/expenses', {
+      params: {
+        page: 1,
+        limit: 10,
+        budgetId: id,
+        category: selectedCategory || undefined,
+        paymentMethod: selectedPaymentMethod || undefined,
+      },
+    })
+      .then((res) => {
+        if (!cancelled && res.data.success) {
+          setExpenses(res.data.data);
+          setPagination(res.data.pagination);
+          setCategoryTotals(res.data.categoryTotals || []);
+          setPaymentMethodTotals(res.data.paymentMethodTotals || []);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error('Error fetching budget expenses:', err);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setExpensesLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, selectedCategory, selectedPaymentMethod]);
+
+  const handleCategoryChange = (category) => {
+    setExpensesLoading(true);
+    setSelectedCategory(category);
+  };
+
+  const handlePaymentMethodChange = (paymentMethod) => {
+    setExpensesLoading(true);
+    setSelectedPaymentMethod(paymentMethod);
+  };
     fetchBudgetDetails();
     fetchLookupData();
   }, [id]);
@@ -176,6 +246,7 @@ const BudgetDetails = () => {
       if (res.data.success) {
         setSuccess(editingExpense?._id ? 'Expense updated successfully!' : 'Expense added successfully!');
         fetchBudgetDetails();
+        setExpensesLoading(true);
         fetchBudgetExpenses(pagination.page);
         setTimeout(() => setSuccess(''), 3000);
         return { success: true };
@@ -195,6 +266,7 @@ const BudgetDetails = () => {
         if (res.data.success) {
           setSuccess('Expense deleted successfully!');
           fetchBudgetDetails();
+          setExpensesLoading(true);
           fetchBudgetExpenses(1); // Reset to page 1 as totals changed
           setTimeout(() => setSuccess(''), 3000);
         }
@@ -211,8 +283,14 @@ const BudgetDetails = () => {
     if (!Number.isFinite(amount) || amount <= 0) return alert('Enter a valid refund amount.');
     const notes = window.prompt('Reason or product name for this refund:', '');
     if (notes === null || !notes.trim()) return alert('Enter a refund reason or product name.');
-    try { await API.post(`/expenses/${expense._id}/refunds`, { amount, notes }); fetchBudgetDetails(); fetchBudgetExpenses(1); }
-    catch (err) { alert(err.response?.data?.message || 'Failed to record refund'); }
+    try {
+      await API.post(`/expenses/${expense._id}/refunds`, { amount, notes });
+      fetchBudgetDetails();
+      setExpensesLoading(true);
+      fetchBudgetExpenses(1);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to record refund');
+    }
   };
 
   const handleCreateCategory = async (name) => {
@@ -343,21 +421,34 @@ const BudgetDetails = () => {
           </div>
 
           <div className="relative">
-            <ExpenseTable
-              expenses={expenses}
-              pagination={pagination}
-              onPageChange={(page) => fetchBudgetExpenses(page)}
-              onEdit={openEditExpenseModal}
-              onDelete={handleExpenseDelete}
-              onRefund={handleExpenseRefund}
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-              selectedCategory={selectedCategory}
-              onCategoryChange={setSelectedCategory}
-              categories={categories}
-              categoryTotals={categoryTotals}
-              loading={expensesLoading}
-            />
+            {expensesLoading && expenses.length === 0 ? (
+              <div className="py-20 text-center text-slate-400 text-xs">
+                <span className="h-6 w-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin inline-block"></span>
+                <p className="mt-2">Retrieving transactions...</p>
+              </div>
+            ) : (
+              <ExpenseTable
+                expenses={expenses}
+                pagination={pagination}
+                onPageChange={(page) => {
+                  setExpensesLoading(true);
+                  fetchBudgetExpenses(page);
+                }}
+                onEdit={openEditExpenseModal}
+                onDelete={handleExpenseDelete}
+                onRefund={handleExpenseRefund}
+                searchTerm=""
+                onSearchChange={() => {}}
+                selectedCategory={selectedCategory}
+                onCategoryChange={handleCategoryChange}
+                categories={categories}
+                categoryTotals={categoryTotals}
+                selectedPaymentMethod={selectedPaymentMethod}
+                onPaymentMethodChange={handlePaymentMethodChange}
+                paymentMethodTotals={paymentMethodTotals}
+                loading={expensesLoading}
+              />
+            )}
           </div>
         </div>
       </div>
