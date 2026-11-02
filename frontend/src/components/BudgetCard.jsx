@@ -1,7 +1,7 @@
 import React from 'react';
-import { Calendar, IndianRupee, Landmark, Lock, ArrowUpRight, Plus } from 'lucide-react';
+import { Calendar, IndianRupee, Landmark, Lock, ArrowUpRight, Plus, Download } from 'lucide-react';
 
-const BudgetCard = ({ budget, onCloseBudget, onSelectBudget, onAddExpense }) => {
+const BudgetCard = ({ budget, onCloseBudget, onSelectBudget, onAddExpense, onExport, isExporting = false }) => {
   if (!budget) return null;
 
   const {
@@ -151,14 +151,29 @@ const BudgetCard = ({ budget, onCloseBudget, onSelectBudget, onAddExpense }) => 
       )}
 
       {/* Action Buttons */}
-      <div className="flex space-x-2">
+      <div className="flex flex-wrap gap-2">
         {onSelectBudget && (
           <button
             onClick={() => onSelectBudget(_id)}
-            className="flex-1 btn-secondary text-xs py-2 px-3 rounded-lg flex items-center justify-center"
+            className="flex-1 min-w-32 btn-secondary text-xs py-2 px-3 rounded-lg flex items-center justify-center"
           >
             <span>View Expenses</span>
             <ArrowUpRight className="h-3.5 w-3.5 ml-1.5" />
+          </button>
+        )}
+        {onExport && (
+          <button
+            onClick={() => onExport(budget)}
+            disabled={isExporting}
+            className="flex-1 min-w-28 btn-secondary text-xs py-2 px-3 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-wait"
+            title="Download all expenses in this budget as CSV"
+          >
+            {isExporting ? (
+              <span className="h-3.5 w-3.5 border-2 border-slate-300 border-t-transparent rounded-full animate-spin mr-1.5"></span>
+            ) : (
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            <span>{isExporting ? 'Exporting...' : 'Export CSV'}</span>
           </button>
         )}
         {!isClosed && onAddExpense && (
@@ -177,7 +192,7 @@ const BudgetCard = ({ budget, onCloseBudget, onSelectBudget, onAddExpense }) => 
                 onCloseBudget(_id);
               }
             }}
-            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs py-2 px-3 rounded-lg flex items-center justify-center transition-colors shadow-md shadow-emerald-600/10"
+            className={`${onSelectBudget && onExport ? 'w-full' : 'flex-1'} bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs py-2 px-3 rounded-lg flex items-center justify-center transition-colors shadow-md shadow-emerald-600/10`}
           >
             <Landmark className="h-3.5 w-3.5 mr-1.5" />
             <span>Close & Save</span>

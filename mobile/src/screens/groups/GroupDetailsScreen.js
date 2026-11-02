@@ -1,9 +1,9 @@
-import React, { useLayoutEffect } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2 } from 'lucide-react-native';
+import { Download, Plus, Trash2 } from 'lucide-react-native';
 import { deleteGroup, getGroup, updateGroup } from '../../api/groups';
-import { deleteExpense } from '../../api/expenses';
+import { deleteExpense, getExpenses } from '../../api/expenses';
 import AppScreen from '../../components/common/AppScreen';
 import EmptyState from '../../components/common/EmptyState';
 import ExpenseRow from '../../components/expenses/ExpenseRow';
@@ -14,12 +14,14 @@ import { useExpenseSheet } from '../../store/ExpenseSheetContext';
 import { useTheme } from '../../store/ThemeContext';
 import { money, progress, progressColor, shortDate } from '../../utils/formatters';
 import { userMessage } from '../../utils/errors';
+import { downloadGroupCsv } from '../../utils/csvExport';
 
 export default function GroupDetailsScreen({ route, navigation }) {
   const { id } = route.params;
   const queryClient = useQueryClient();
   const { openExpenseSheet } = useExpenseSheet();
   const { colors, shadow } = useTheme();
+  const [exporting, setExporting] = useState(false);
 
   const groupQuery = useQuery({ queryKey: ['group', id], queryFn: () => getGroup(id) });
   const update = useMutation({ mutationFn: ({ status }) => updateGroup(id, { status }) });
@@ -64,6 +66,19 @@ export default function GroupDetailsScreen({ route, navigation }) {
   const { group, expenses } = data;
   const pct = group.isBudgetEnabled && group.budgetLimit ? progress(group.totalSpent, group.budgetLimit) : 0;
   const completed = group.status !== 'active';
+
+  const exportGroup = async () => {
+    try {
+      setExporting(true);
+      const result = await getExpenses({ limit: 0, groupId: id });
+      await downloadGroupCsv(group, result.data || []);
+    } catch (error) {
+      const message = error.isAxiosError ? userMessage(error) : error.message;
+      Alert.alert('Could not export group', message || 'The CSV file could not be created.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const removeExpense = (item) =>
     Alert.alert('Delete expense?', `Delete "${item.title}"?`, [
@@ -153,6 +168,13 @@ export default function GroupDetailsScreen({ route, navigation }) {
                   This group is {group.status}; new expenses are disabled.
                 </Text>
               )}
+              <PrimaryButton
+                title="Export CSV"
+                icon={Download}
+                tone="secondary"
+                onPress={exportGroup}
+                loading={exporting}
+              />
             </View>
             <Text style={[styles.section, { color: colors.muted }]}>TRANSACTION LEDGER</Text>
           </>

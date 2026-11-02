@@ -14,6 +14,7 @@ FinFlow is a full-stack personal finance app for monthly budgeting, expense trac
 - **Savings-funded expenses**: Mark an expense as paid from savings to deduct it from overall savings, skip monthly budget deduction, and log it in the savings ledger.
 - **Special expense groups**: Create active trackers for trips, events, campaigns, weddings, or other one-off spending categories.
 - **Group-linked expenses**: Attach expenses to active groups and track total group spending separately from normal budget flow.
+- **CSV exports**: Download complete monthly-budget and expense-group ledgers, including summary totals, refunds, and transaction details.
 - **Savings ledger**: Record direct savings withdrawals and view historical savings transactions.
 - **Profile sync**: User profile data refreshes after budget closures and savings transactions so balances stay current.
 - **Responsive UI**: React dashboard with Vite, Tailwind-based styling, Lucide icons, and Recharts visualizations.

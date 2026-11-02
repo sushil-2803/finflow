@@ -1,8 +1,8 @@
 import React from 'react';
-import { FolderKanban, IndianRupee, Calendar, ArrowRight, Plus } from 'lucide-react';
+import { FolderKanban, IndianRupee, Calendar, ArrowRight, Plus, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const GroupCard = ({ group, onAddExpense }) => {
+const GroupCard = ({ group, onAddExpense, onExport, isExporting = false }) => {
   if (!group) return null;
 
   const {
@@ -129,29 +129,50 @@ const GroupCard = ({ group, onAddExpense }) => {
           </div>
         )}
 
-        {/* Action button */}
-        {status === 'active' && onAddExpense ? (
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onAddExpense(_id);
-            }}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs py-2.5 rounded-lg flex items-center justify-center transition-colors shadow-md shadow-emerald-600/10 cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            <span>Add Expense</span>
-          </button>
-        ) : (
-          <Link
-            to={`/groups`}
-            state={{ selectedGroupId: _id }}
-            className="btn-secondary w-full text-xs py-2.5 rounded-lg flex items-center justify-center"
-          >
-            <span>Manage Group Expenses</span>
-            <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
-          </Link>
-        )}
+        {/* Action buttons */}
+        <div className="flex gap-2">
+          {status === 'active' && onAddExpense ? (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onAddExpense(_id);
+              }}
+              className={`${onExport ? 'flex-1' : 'w-full'} bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs py-2.5 px-3 rounded-lg flex items-center justify-center transition-colors shadow-md shadow-emerald-600/10 cursor-pointer`}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              <span>Add Expense</span>
+            </button>
+          ) : (
+            <Link
+              to={`/groups`}
+              state={{ selectedGroupId: _id }}
+              className={`btn-secondary ${onExport ? 'flex-1' : 'w-full'} text-xs py-2.5 px-3 rounded-lg flex items-center justify-center`}
+            >
+              <span>Manage Group Expenses</span>
+              <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+            </Link>
+          )}
+          {onExport && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onExport(group);
+              }}
+              disabled={isExporting}
+              className="btn-secondary text-xs py-2.5 px-3 rounded-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-wait"
+              title="Download all expenses in this group as CSV"
+            >
+              {isExporting ? (
+                <span className="h-3.5 w-3.5 border-2 border-slate-300 border-t-transparent rounded-full animate-spin"></span>
+              ) : (
+                <Download className="h-3.5 w-3.5" />
+              )}
+              <span className="sr-only">{isExporting ? 'Exporting CSV' : 'Export CSV'}</span>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
