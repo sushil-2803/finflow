@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import API from '../api/axios';
 import BudgetCard from '../components/BudgetCard';
@@ -33,10 +33,12 @@ const BudgetDetails = () => {
   const [budgets, setBudgets] = useState([]);
   const [groups, setGroups] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
   const [categoryTotals, setCategoryTotals] = useState([]);
   const [paymentMethodTotals, setPaymentMethodTotals] = useState([]);
+  const expensesRequestId = useRef(0);
 
   // Fetch budget detail and its expenses
   const fetchBudgetDetails = async () => {
@@ -54,6 +56,7 @@ const BudgetDetails = () => {
   };
 
   const fetchBudgetExpenses = async (page = 1) => {
+    const requestId = ++expensesRequestId.current;
     try {
       let url = `/expenses?page=${page}&limit=10&budgetId=${id}`;
       if (selectedCategory) {
@@ -61,18 +64,24 @@ const BudgetDetails = () => {
       }
       if (selectedPaymentMethod) {
         url += `&paymentMethod=${encodeURIComponent(selectedPaymentMethod)}`;
+      if (searchTerm.trim()) {
+        url += `&search=${encodeURIComponent(searchTerm.trim())}`;
       }
       const res = await API.get(url);
-      if (res.data.success) {
+      if (requestId === expensesRequestId.current && res.data.success) {
         setExpenses(res.data.data);
         setPagination(res.data.pagination);
         setCategoryTotals(res.data.categoryTotals || []);
         setPaymentMethodTotals(res.data.paymentMethodTotals || []);
       }
     } catch (err) {
-      console.error('Error fetching budget expenses:', err);
+      if (requestId === expensesRequestId.current) {
+        console.error('Error fetching budget expenses:', err);
+      }
     } finally {
-      setExpensesLoading(false);
+      if (requestId === expensesRequestId.current) {
+        setExpensesLoading(false);
+      }
     }
   };
 
@@ -164,6 +173,14 @@ const BudgetDetails = () => {
     setExpensesLoading(true);
     setSelectedPaymentMethod(paymentMethod);
   };
+    fetchBudgetDetails();
+    fetchLookupData();
+  }, [id]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => fetchBudgetExpenses(1), 250);
+    return () => clearTimeout(timer);
+  }, [id, selectedCategory, searchTerm]);
 
   const handleCloseBudget = async (budgetId) => {
     try {
